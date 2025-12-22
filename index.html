@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Margin Call: The Last Stand</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #020617;
+            color: #f8fafc;
+            font-family: 'JetBrains+Mono', monospace;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        .orbitron { font-family: 'Orbitron', sans-serif; }
+        
+        /* Glitch and Glow effects */
+        .glitch-text {
+            text-shadow: 2px 0 #00ffff, -2px 0 #ff00ff;
+            animation: glitch 3s infinite;
+        }
+        @keyframes glitch {
+            0% { text-shadow: 2px 0 #00ffff, -2px 0 #ff00ff; }
+            50% { text-shadow: -2px 0 #00ffff, 2px 0 #ff00ff; }
+            100% { text-shadow: 2px 0 #00ffff, -2px 0 #ff00ff; }
+        }
+
+        /* Laser Grid Animation */
+        @keyframes pulse-red {
+            0% { opacity: 0.4; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+            50% { opacity: 1; box-shadow: 0 0 40px rgba(239, 68, 68, 0.8); }
+            100% { opacity: 0.4; box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+        }
+        .laser-grid {
+            background: linear-gradient(0deg, rgba(239, 68, 68, 0.8) 0%, rgba(239, 68, 68, 0.1) 100%);
+            animation: pulse-red 1.5s infinite;
+        }
+
+        /* Data Stream Background */
+        .data-stream {
+            mask-image: linear-gradient(to bottom, transparent, black, transparent);
+            animation: scroll-data 60s linear infinite;
+        }
+        @keyframes scroll-data {
+            from { transform: translateY(0); }
+            to { transform: translateY(-50%); }
+        }
+
+        /* Screen Shake for Black Swans */
+        .shake {
+            animation: shake-anim 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake-anim {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(2, 6, 23, 0.5);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #0ea5e9;
+            border-radius: 2px;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "recharts": "https://esm.sh/recharts@^3.6.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
