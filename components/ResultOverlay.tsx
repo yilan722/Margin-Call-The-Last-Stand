@@ -43,6 +43,9 @@ const ResultOverlay: React.FC<Props> = ({
   const excessProfit = isSuccess ? finalBalance - targetCash : 0;
   const diamondsEarned = Math.floor(excessProfit / 100); // 超额部分 / 100 = 钻石
   
+  // 计算更新后的钻石总数（用于显示）
+  const updatedTimeDiamonds = isSuccess ? timeDiamonds + diamondsEarned : timeDiamonds;
+  
   // 复活成本
   const reviveCost = isLiquidated ? 100 : (isFailed ? 50 : 0);
   const canRevive = timeDiamonds >= reviveCost && (isLiquidated || isFailed);
@@ -105,19 +108,34 @@ const ResultOverlay: React.FC<Props> = ({
           </div>
 
           {/* 钻石转化 */}
-          {isSuccess && diamondsEarned > 0 && (
-            <div className="bg-gradient-to-r from-cyan-900/30 to-cyan-800/30 p-6 rounded border-2 border-cyan-500/50">
+          {isSuccess && (
+            <div className={`p-6 rounded border-2 ${
+              diamondsEarned > 0 
+                ? 'bg-gradient-to-r from-cyan-900/30 to-cyan-800/30 border-cyan-500/50' 
+                : 'bg-slate-900/50 border-slate-700'
+            }`}>
               <div className="flex justify-between items-center mb-4">
-                <span className="text-cyan-400 uppercase text-xs tracking-widest orbitron">超额收益转化 (Excess Profit)</span>
+                <span className={`uppercase text-xs tracking-widest orbitron ${
+                  diamondsEarned > 0 ? 'text-cyan-400' : 'text-slate-500'
+                }`}>
+                  超额收益转化 (Excess Profit)
+                </span>
                 <span className="text-3xl">💎</span>
               </div>
-              <div className="flex items-baseline space-x-4">
-                <div className="text-5xl font-black text-cyan-400 orbitron">{diamondsEarned}</div>
-                <div className="text-slate-400 text-sm">
-                  <div>公式: (${finalBalance.toLocaleString()} - ${targetCash.toLocaleString()}) ÷ 100 = {diamondsEarned} 颗</div>
-                  <div className="text-xs mt-1 opacity-75">（超额部分每$100 = 1颗钻石）</div>
+              {diamondsEarned > 0 ? (
+                <div className="flex items-baseline space-x-4">
+                  <div className="text-5xl font-black text-cyan-400 orbitron">+{diamondsEarned}</div>
+                  <div className="text-slate-400 text-sm">
+                    <div>公式: (${finalBalance.toLocaleString()} - ${targetCash.toLocaleString()}) ÷ 100 = {diamondsEarned} 颗</div>
+                    <div className="text-xs mt-1 opacity-75">（超额部分每$100 = 1颗钻石）</div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-slate-400 text-sm">
+                  <div>超额收益: ${(finalBalance - targetCash).toLocaleString()} (不足$100，无法转化为钻石)</div>
+                  <div className="text-xs mt-1 opacity-75">需要超额至少$100才能获得1颗钻石</div>
+                </div>
+              )}
             </div>
           )}
 
@@ -149,9 +167,16 @@ const ResultOverlay: React.FC<Props> = ({
 
           <div className="flex justify-between items-center py-4 border-b border-slate-800">
             <span className="text-slate-400 uppercase text-xs tracking-widest">当前钻石 (Time Diamonds)</span>
-            <span className="text-xl text-cyan-400 orbitron">
-              {timeDiamonds} 💎
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="text-xl text-cyan-400 orbitron">
+                {updatedTimeDiamonds} 💎
+              </span>
+              {isSuccess && diamondsEarned > 0 && (
+                <span className="text-sm text-emerald-400 orbitron">
+                  (+{diamondsEarned})
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="bg-slate-950 p-6 rounded border border-slate-800">

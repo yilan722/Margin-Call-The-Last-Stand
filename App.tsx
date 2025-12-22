@@ -508,6 +508,7 @@ const App: React.FC = () => {
           scenario={scenario}
           currentCash={profile.currentCash}
           targetCash={currentLevelTarget}
+          timeDiamonds={profile.timeDiamonds}
           onStart={() => setPhase(GamePhase.BETTING)}
           onBack={() => setPhase(GamePhase.CAMPAIGN_MAP)}
         />
