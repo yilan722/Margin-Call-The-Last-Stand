@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GamePhase, Side, PlayerState, Scenario, PlayerProfile, Chapter, EquipmentType, ConsumableType, Equipment, Consumable } from './types';
-import { SCENARIOS, LEVERAGE_OPTIONS, EQUIPMENT_PRICES, CONSUMABLE_PRICES, getReviveCost } from './constants';
+import { GamePhase, Side, PlayerState, Scenario, PlayerProfile, Chapter, EquipmentType, ConsumableType, Equipment, Consumable, TemporaryItemType } from './types';
+import { SCENARIOS, LEVERAGE_OPTIONS, EQUIPMENT_PRICES, CONSUMABLE_PRICES, getReviveCost, INITIAL_CASH, TEMPORARY_ITEM_PRICES } from './constants';
 import BettingOverlay from './components/BettingOverlay';
 import GameView from './components/GameView';
 import ResultOverlay from './components/ResultOverlay';
 import CampaignMap from './components/CampaignMap';
 import DarkPoolShop from './components/DarkPoolShop';
+import LevelBriefing from './components/LevelBriefing';
+import IntermissionShop from './components/IntermissionShop';
 import { GoogleGenAI } from "@google/genai";
 
 // 初始化玩家档案
 const createInitialProfile = (): PlayerProfile => ({
   timeDiamonds: 0,
+  currentCash: INITIAL_CASH, // 初始资金 $10,000
   currentChapter: Chapter.GOLDEN_AGE,
   currentLevel: 1,
   unlockedLevels: ['1-1'],
@@ -25,7 +28,15 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<PlayerProfile>(() => {
     // 从localStorage加载或创建新档案
     const saved = localStorage.getItem('timeTraderProfile');
-    return saved ? JSON.parse(saved) : createInitialProfile();
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // 迁移旧存档：如果没有currentCash字段，设置为初始值
+      if (parsed.currentCash === undefined) {
+        parsed.currentCash = INITIAL_CASH;
+      }
+      return parsed;
+    }
+    return createInitialProfile();
   });
   const [scenario, setScenario] = useState<Scenario>(SCENARIOS[0]);
   const [player, setPlayer] = useState<PlayerState | null>(null);
@@ -34,6 +45,9 @@ const App: React.FC = () => {
   const [isShaking, setIsShaking] = useState(false);
   const [marginBuffer, setMarginBuffer] = useState(0);
   const [hasStopLossProtection, setHasStopLossProtection] = useState(false); // 熔断保护器状态
+  const [temporaryItems, setTemporaryItems] = useState<{ type: TemporaryItemType; count: number }[]>([]); // 临时道具
+  const [currentLevelTarget, setCurrentLevelTarget] = useState(0); // 当前关卡目标金额
+  const [finalBalance, setFinalBalance] = useState(0); // 关卡结束时的最终余额
 
   const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -41,6 +55,20 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('timeTraderProfile', JSON.stringify(profile));
   }, [profile]);
+
+  // 计算关卡目标金额
+  const calculateLevelTarget = (scenario: Scenario, currentCash: number): number => {
+    if (scenario.targetMultiplier) {
+      return Math.floor(currentCash * scenario.targetMultiplier);
+    }
+    // 默认目标：增长20%
+    return Math.floor(currentCash * 1.2);
+  };
+
+  // 计算最终余额（基于收益率）
+  const calculateFinalBalance = (currentCash: number, pnl: number): number => {
+    return Math.floor(currentCash * (1 + pnl / 100));
+  };
 
   const startGame = (selectedSide: Side, selectedLeverage: number, selectedScenario: Scenario) => {
     setScenario(selectedScenario);
@@ -99,12 +127,18 @@ const App: React.FC = () => {
               clearInterval(gameLoopRef.current);
             }
             // 数据走完，标记为已完成（存活完成关卡）
-            setPlayer(prev => prev ? ({
-              ...prev,
-              isExited: true,
-              exitPrice: scenario.data[prev]?.price || prev.entryPrice,
-              exitPnl: prev.currentPnl
-            }) : null);
+            setPlayer(prev => {
+              if (!prev) return null;
+              const finalPnl = prev.currentPnl;
+              const endBalance = calculateFinalBalance(profile.currentCash, finalPnl);
+              setFinalBalance(endBalance);
+              return {
+                ...prev,
+                isExited: true,
+                exitPrice: scenario.data[prev]?.price || prev.entryPrice,
+                exitPnl: finalPnl
+              };
+            });
             setPhase(GamePhase.RESULT);
             return prev;
           }
@@ -160,6 +194,8 @@ const App: React.FC = () => {
       const highPnl = Math.max(prev.highPnl, actualPnl);
 
       if (isDead) {
+        const endBalance = calculateFinalBalance(profile.currentCash, -100);
+        setFinalBalance(endBalance);
         setPhase(GamePhase.RESULT);
         setProfile(prevProfile => ({ ...prevProfile, totalDeaths: prevProfile.totalDeaths + 1 }));
         return { ...prev, currentPnl: -100, currentYield: -100, isDead: true, highPnl };
@@ -182,12 +218,18 @@ const App: React.FC = () => {
 
   const handleJumpOut = () => {
     if (!player || player.isDead || player.isExited) return;
-    setPlayer(prev => prev ? ({
-      ...prev,
-      isExited: true,
-      exitPrice: scenario.data[currentIndex].price,
-      exitPnl: prev.currentPnl
-    }) : null);
+    setPlayer(prev => {
+      if (!prev) return null;
+      const finalPnl = prev.currentPnl;
+      const endBalance = calculateFinalBalance(profile.currentCash, finalPnl);
+      setFinalBalance(endBalance);
+      return {
+        ...prev,
+        isExited: true,
+        exitPrice: scenario.data[currentIndex].price,
+        exitPnl: finalPnl
+      };
+    });
     setPhase(GamePhase.RESULT);
   };
 
@@ -235,75 +277,113 @@ const App: React.FC = () => {
 
   const handleSafeExtract = () => {
     if (!player || player.isDead || player.isExited) return;
-    // 安全撤离，立即转化钻石
-    const diamondsEarned = Math.max(0, Math.floor(player.currentPnl));
-    if (diamondsEarned > 0) {
-      // 应用钻石矿机加成
-      const diamondMiner = profile.equipment.find(e => e.type === EquipmentType.DIAMOND_MINER);
-      const bonus = diamondMiner ? diamondMiner.level * 0.1 : 0;
-      const finalDiamonds = Math.floor(diamondsEarned * (1 + bonus));
-      
-      setProfile(prev => ({
-        ...prev,
-        timeDiamonds: prev.timeDiamonds + finalDiamonds,
-        totalDiamondsEarned: prev.totalDiamondsEarned + finalDiamonds
-      }));
-    }
-    
-    // 安全撤离也算完成关卡，解锁下一关
-    unlockNextLevel(scenario);
+    // 提前结算：如果已经达到目标，可以提前结束
+    const finalPnl = player.currentPnl;
+    const endBalance = calculateFinalBalance(profile.currentCash, finalPnl);
+    setFinalBalance(endBalance);
     
     setPlayer(prev => prev ? ({
       ...prev,
       isExited: true,
       exitPrice: scenario.data[currentIndex].price,
-      exitPnl: prev.currentPnl
+      exitPnl: finalPnl
     }) : null);
     setPhase(GamePhase.RESULT);
   };
 
+  // 计算结算结果
+  const calculateResult = (endBalance: number, targetBalance: number) => {
+    if (endBalance <= 0) return { status: 'LIQUIDATED' as const }; // 爆仓
+    if (endBalance < targetBalance) return { status: 'FAILED' as const }; // 未达标
+
+    // 成功通关
+    const profit = endBalance - targetBalance;
+    const diamondReward = Math.floor(profit / 100); // 超额部分换钻石
+    
+    return {
+      status: 'SUCCESS' as const,
+      nextCash: endBalance, // 本金带入下一关
+      diamondGain: diamondReward
+    };
+  };
+
   const handleExtractDiamonds = () => {
     if (!player) return;
-    const finalPnl = player.isDead ? -100 : (player.exitPnl || player.currentPnl);
-    const diamondsEarned = Math.max(0, Math.floor(finalPnl));
     
-    if (diamondsEarned > 0 && !player.isDead) {
+    const finalPnl = player.isDead ? -100 : (player.exitPnl || player.currentPnl);
+    const endBalance = calculateFinalBalance(profile.currentCash, finalPnl);
+    setFinalBalance(endBalance);
+    
+    const result = calculateResult(endBalance, currentLevelTarget);
+    
+    if (result.status === 'LIQUIDATED') {
+      // 爆仓归零
+      setProfile(prev => ({
+        ...prev,
+        currentCash: 0,
+        totalDeaths: prev.totalDeaths + 1
+      }));
+      // 可以选择进入复活界面或直接结束
+    } else if (result.status === 'FAILED') {
+      // 业绩未达标
+      // 不更新现金，保持当前状态，让玩家选择是否用钻石补救
+    } else {
+      // 成功通关
       const diamondMiner = profile.equipment.find(e => e.type === EquipmentType.DIAMOND_MINER);
       const bonus = diamondMiner ? diamondMiner.level * 0.1 : 0;
-      const finalDiamonds = Math.floor(diamondsEarned * (1 + bonus));
+      const finalDiamonds = Math.floor(result.diamondGain * (1 + bonus));
       
       setProfile(prev => ({
         ...prev,
+        currentCash: result.nextCash, // 更新本金
         timeDiamonds: prev.timeDiamonds + finalDiamonds,
         totalDiamondsEarned: prev.totalDiamondsEarned + finalDiamonds
       }));
-    }
-    
-    // 更新进度（只有存活时才解锁下一关）
-    if (!player.isDead) {
+      
       unlockNextLevel(scenario);
     }
     
-    setPhase(GamePhase.CAMPAIGN_MAP);
+    // 进入局间商店（如果成功）或返回地图
+    if (result.status === 'SUCCESS') {
+      setPhase(GamePhase.INTERMISSION_SHOP);
+    } else {
+      setPhase(GamePhase.CAMPAIGN_MAP);
+    }
   };
 
   const handleRevive = () => {
     if (!player) return;
-    const reviveCost = getReviveCost(scenario.level);
     
-    if (profile.timeDiamonds >= reviveCost) {
-      setProfile(prev => ({
-        ...prev,
-        timeDiamonds: prev.timeDiamonds - reviveCost
-      }));
-      // 复活：重置玩家状态，继续游戏
-      setPlayer({
-        ...player,
-        isDead: false,
-        currentPnl: -50, // 复活后从-50%开始
-        currentYield: -50
-      });
-      setPhase(GamePhase.TRADING);
+    // 判断是爆仓还是业绩未达标
+    const finalPnl = player.isDead ? -100 : (player.exitPnl || player.currentPnl);
+    const endBalance = calculateFinalBalance(profile.currentCash, finalPnl);
+    const result = calculateResult(endBalance, currentLevelTarget);
+    
+    if (result.status === 'LIQUIDATED') {
+      // 爆仓归零：申请紧急救助金
+      const reviveCost = 100; // 固定100钻石
+      if (profile.timeDiamonds >= reviveCost) {
+        setProfile(prev => ({
+          ...prev,
+          timeDiamonds: prev.timeDiamonds - reviveCost,
+          currentCash: Math.floor(INITIAL_CASH * 0.5) // 恢复50%初始本金
+        }));
+        // 重新挑战本关
+        setPhase(GamePhase.LEVEL_BRIEFING);
+      }
+    } else if (result.status === 'FAILED') {
+      // 业绩未达标：贿赂HR补齐差额
+      const shortage = currentLevelTarget - endBalance;
+      const reviveCost = 50; // 固定50钻石
+      if (profile.timeDiamonds >= reviveCost) {
+        setProfile(prev => ({
+          ...prev,
+          timeDiamonds: prev.timeDiamonds - reviveCost,
+          currentCash: currentLevelTarget // 补齐到目标金额
+        }));
+        unlockNextLevel(scenario);
+        setPhase(GamePhase.INTERMISSION_SHOP);
+      }
     }
   };
 
@@ -414,9 +494,22 @@ const App: React.FC = () => {
           profile={profile}
           onSelectLevel={(scenario) => {
             setScenario(scenario);
-            setPhase(GamePhase.BETTING);
+            // 计算目标金额
+            const target = calculateLevelTarget(scenario, profile.currentCash);
+            setCurrentLevelTarget(target);
+            setPhase(GamePhase.LEVEL_BRIEFING);
           }}
           onBack={() => setPhase(GamePhase.LOBBY)}
+        />
+      )}
+
+      {phase === GamePhase.LEVEL_BRIEFING && (
+        <LevelBriefing
+          scenario={scenario}
+          currentCash={profile.currentCash}
+          targetCash={currentLevelTarget}
+          onStart={() => setPhase(GamePhase.BETTING)}
+          onBack={() => setPhase(GamePhase.CAMPAIGN_MAP)}
         />
       )}
 
@@ -452,6 +545,8 @@ const App: React.FC = () => {
           marginBuffer={marginBuffer}
           equipment={profile.equipment}
           consumables={profile.consumables}
+          currentCash={profile.currentCash}
+          targetCash={currentLevelTarget}
         />
       )}
 
@@ -460,12 +555,45 @@ const App: React.FC = () => {
           player={player} 
           scenario={scenario}
           timeDiamonds={profile.timeDiamonds}
+          currentCash={profile.currentCash}
+          targetCash={currentLevelTarget}
+          finalBalance={finalBalance}
           onExtract={handleExtractDiamonds}
           onRevive={handleRevive}
           onContinue={() => setPhase(GamePhase.CAMPAIGN_MAP)}
           onRestart={() => {
-            setScenario(scenario);
-            setPhase(GamePhase.BETTING);
+            const target = calculateLevelTarget(scenario, profile.currentCash);
+            setCurrentLevelTarget(target);
+            setPhase(GamePhase.LEVEL_BRIEFING);
+          }}
+          onBack={() => setPhase(GamePhase.CAMPAIGN_MAP)}
+        />
+      )}
+
+      {phase === GamePhase.INTERMISSION_SHOP && (
+        <IntermissionShop
+          currentCash={profile.currentCash}
+          temporaryItems={temporaryItems}
+          onPurchase={(type) => {
+            const price = TEMPORARY_ITEM_PRICES[type];
+            if (profile.currentCash >= price) {
+              setProfile(prev => ({
+                ...prev,
+                currentCash: prev.currentCash - price
+              }));
+              setTemporaryItems(prev => {
+                const existing = prev.find(i => i.type === type);
+                if (existing) {
+                  return prev.map(i => i.type === type ? { ...i, count: i.count + 1 } : i);
+                }
+                return [...prev, { type, count: 1 }];
+              });
+            }
+          }}
+          onContinue={() => {
+            // 清空临时道具（它们会在下一关开始时生效）
+            setTemporaryItems([]);
+            setPhase(GamePhase.CAMPAIGN_MAP);
           }}
           onBack={() => setPhase(GamePhase.CAMPAIGN_MAP)}
         />

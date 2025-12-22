@@ -16,6 +16,8 @@ interface Props {
   marginBuffer: number;
   equipment: Equipment[]; // 装备列表
   consumables: { type: ConsumableType; count: number }[]; // 可用消耗品
+  currentCash: number; // 当前本金
+  targetCash: number; // 目标金额
 }
 
 const GameView: React.FC<Props> = ({ 
@@ -30,10 +32,17 @@ const GameView: React.FC<Props> = ({
   onUseConsumable,
   marginBuffer,
   equipment,
-  consumables
+  consumables,
+  currentCash,
+  targetCash
 }) => {
   const currentPrice = scenario.data[currentIndex].price;
   const pnl = player.currentPnl;
+  
+  // 计算当前余额
+  const currentBalance = Math.max(0, Math.floor(currentCash * (1 + pnl / 100)));
+  const progressPercent = Math.min(100, Math.max(0, (currentBalance / targetCash) * 100));
+  const canEarlyExit = currentBalance >= targetCash && !player.isDead;
   
   // 装备效果计算
   const antiGravityLevel = equipment.find(e => e.type === EquipmentType.ANTI_GRAVITY_ENGINE)?.level || 0;
@@ -201,14 +210,25 @@ const GameView: React.FC<Props> = ({
 
         {/* Action HUD */}
         <div className="bg-slate-950 border border-slate-800 p-6 space-y-4 shadow-2xl">
-          {/* 安全撤离按钮 */}
-          {pnl > 0 && (
+          {/* 提前结算按钮（达到目标时显示） */}
+          {canEarlyExit && (
+            <button 
+              onClick={onSafeExtract}
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white orbitron font-black text-lg tracking-[0.2em] shadow-[0_0_30px_rgba(16,185,129,0.5)] active:scale-95 transition-all relative overflow-hidden group animate-pulse"
+            >
+              <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+              ✓ 提前下班 (Early Exit) - 目标已达成！
+            </button>
+          )}
+          
+          {/* 安全撤离按钮（盈利但未达目标时显示） */}
+          {pnl > 0 && !canEarlyExit && (
             <button 
               onClick={onSafeExtract}
               className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 text-white orbitron font-black text-lg tracking-[0.2em] shadow-[0_0_30px_rgba(6,182,212,0.3)] active:scale-95 transition-all relative overflow-hidden group"
             >
               <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
-              安全撤离 (Safe Extract) - {Math.floor(pnl)} 💎
+              安全撤离 (Safe Extract) - {Math.floor(pnl)}%
             </button>
           )}
           
@@ -284,32 +304,62 @@ const GameView: React.FC<Props> = ({
       </div>
 
       {/* Top Header Navigation */}
-      <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-slate-900 via-slate-900/80 to-transparent flex items-center px-16 justify-between z-20">
-        <div className="flex flex-col">
-            <div className="orbitron text-slate-600 text-[9px] font-black tracking-[0.5em] mb-1 uppercase">Mission Protocol</div>
-            <div className="orbitron text-white text-lg font-black tracking-tight uppercase italic">{scenario.name}</div>
+      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-slate-900 via-slate-900/80 to-transparent flex flex-col px-16 justify-center z-20">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col">
+              <div className="orbitron text-slate-600 text-[9px] font-black tracking-[0.5em] mb-1 uppercase">Mission Protocol</div>
+              <div className="orbitron text-white text-lg font-black tracking-tight uppercase italic">{scenario.name}</div>
+          </div>
+
+          <div className="flex flex-col items-end">
+              <div className="orbitron text-slate-600 text-[9px] font-black tracking-[0.5em] mb-1 uppercase">Local Chrono</div>
+              <div className="orbitron text-white text-lg font-black tracking-tighter uppercase tabular-nums">
+                  {Math.floor(currentIndex / 60).toString().padStart(2, '0')}:{ (currentIndex % 60).toString().padStart(2, '0') }
+              </div>
+          </div>
         </div>
 
-        <div className="flex-1 mx-32 relative">
-           <div className="flex justify-between text-[10px] orbitron text-slate-600 mb-2 font-black">
+        {/* Target Progress Bar */}
+        <div className="flex-1 mx-0 relative mb-2">
+           <div className="flex justify-between text-[10px] orbitron text-slate-400 mb-1 font-black">
+               <span>当前余额: ${currentBalance.toLocaleString()}</span>
+               <span className={canEarlyExit ? 'text-emerald-400' : ''}>
+                 {canEarlyExit ? '✓ 目标已达成' : `目标: $${targetCash.toLocaleString()}`}
+               </span>
+           </div>
+           <div className="h-4 bg-slate-900 border border-slate-800 p-0.5 relative">
+             <div 
+                className={`h-full transition-all duration-300 relative shadow-[0_0_15px_rgba(6,182,212,0.8)] ${
+                  canEarlyExit ? 'bg-gradient-to-r from-emerald-600 to-cyan-500' : 'bg-cyan-500'
+                }`}
+                style={{ width: `${Math.min(100, progressPercent)}%` }}
+             >
+                <div className="absolute right-0 top-0 bottom-0 w-4 bg-white/20 animate-pulse"></div>
+             </div>
+             {/* Target Line */}
+             <div 
+               className="absolute top-0 bottom-0 w-0.5 bg-amber-500 z-10"
+               style={{ left: `${Math.min(100, (targetCash / (targetCash * 1.5)) * 100)}%` }}
+             >
+               <div className="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] text-amber-400 orbitron font-black">目标</div>
+             </div>
+           </div>
+        </div>
+
+        {/* Time Progress Bar */}
+        <div className="flex-1 mx-0 relative">
+           <div className="flex justify-between text-[10px] orbitron text-slate-600 mb-1 font-black">
                <span>DATA_INDEX: {currentIndex}</span>
                <span>TARGET_END: {scenario.data.length}</span>
            </div>
            <div className="h-2 bg-slate-900 border border-slate-800 p-0.5">
              <div 
-                className="h-full bg-cyan-500 transition-all duration-300 relative shadow-[0_0_15px_rgba(6,182,212,0.8)]"
+                className="h-full bg-slate-600 transition-all duration-300 relative"
                 style={{ width: `${(currentIndex / scenario.data.length) * 100}%` }}
              >
                 <div className="absolute right-0 top-0 bottom-0 w-4 bg-white/20 animate-pulse"></div>
              </div>
            </div>
-        </div>
-
-        <div className="flex flex-col items-end">
-            <div className="orbitron text-slate-600 text-[9px] font-black tracking-[0.5em] mb-1 uppercase">Local Chrono</div>
-            <div className="orbitron text-white text-lg font-black tracking-tighter uppercase tabular-nums">
-                {Math.floor(currentIndex / 60).toString().padStart(2, '0')}:{ (currentIndex % 60).toString().padStart(2, '0') }
-            </div>
         </div>
       </div>
     </div>

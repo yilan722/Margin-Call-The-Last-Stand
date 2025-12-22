@@ -1,5 +1,5 @@
 
-import { Scenario, Chapter, EquipmentType, ConsumableType } from './types';
+import { Scenario, Chapter, EquipmentType, ConsumableType, TemporaryItemType } from './types';
 
 // Helper to generate simulated data for historical curves
 const generateCurve = (startPrice: number, points: number, volatility: number, trend: number): any[] => {
@@ -25,7 +25,9 @@ const chapter1Scenarios: Scenario[] = [
     chapter: Chapter.GOLDEN_AGE,
     level: 1,
     isBoss: false,
-    year: 1990
+    year: 1990,
+    targetMultiplier: 1.2, // 目标是本金增长20%
+    duration: 60
   },
   {
     id: '1-2',
@@ -37,7 +39,9 @@ const chapter1Scenarios: Scenario[] = [
     chapter: Chapter.GOLDEN_AGE,
     level: 2,
     isBoss: false,
-    year: 1995
+    year: 1995,
+    targetMultiplier: 1.5,
+    duration: 60
   },
   {
     id: '1-3',
@@ -49,7 +53,9 @@ const chapter1Scenarios: Scenario[] = [
     chapter: Chapter.GOLDEN_AGE,
     level: 3,
     isBoss: false,
-    year: 1997
+    year: 1997,
+    targetMultiplier: 1.8,
+    duration: 60
   },
   {
     id: '1-4',
@@ -61,7 +67,9 @@ const chapter1Scenarios: Scenario[] = [
     chapter: Chapter.GOLDEN_AGE,
     level: 4,
     isBoss: false,
-    year: 1999
+    year: 1999,
+    targetMultiplier: 2.0,
+    duration: 60
   },
   {
     id: '1-5',
@@ -73,7 +81,9 @@ const chapter1Scenarios: Scenario[] = [
     chapter: Chapter.GOLDEN_AGE,
     level: 5,
     isBoss: true,
-    year: 2000
+    year: 2000,
+    targetMultiplier: 2.5,
+    duration: 60
   }
 ];
 
@@ -89,7 +99,9 @@ const chapter2Scenarios: Scenario[] = [
     chapter: Chapter.SUBPRIME_STORM,
     level: 1,
     isBoss: false,
-    year: 2001
+    year: 2001,
+    targetMultiplier: 1.3,
+    duration: 60
   },
   {
     id: '2-2',
@@ -101,7 +113,9 @@ const chapter2Scenarios: Scenario[] = [
     chapter: Chapter.SUBPRIME_STORM,
     level: 2,
     isBoss: false,
-    year: 2005
+    year: 2005,
+    targetMultiplier: 1.6,
+    duration: 60
   },
   {
     id: '2-3',
@@ -113,7 +127,9 @@ const chapter2Scenarios: Scenario[] = [
     chapter: Chapter.SUBPRIME_STORM,
     level: 3,
     isBoss: false,
-    year: 2007
+    year: 2007,
+    targetMultiplier: 1.9,
+    duration: 60
   },
   {
     id: '2-4',
@@ -125,7 +141,9 @@ const chapter2Scenarios: Scenario[] = [
     chapter: Chapter.SUBPRIME_STORM,
     level: 4,
     isBoss: false,
-    year: 2008
+    year: 2008,
+    targetMultiplier: 2.2,
+    duration: 60
   },
   {
     id: '2-10',
@@ -137,7 +155,9 @@ const chapter2Scenarios: Scenario[] = [
     chapter: Chapter.SUBPRIME_STORM,
     level: 10,
     isBoss: true,
-    year: 2008
+    year: 2008,
+    targetMultiplier: 3.0,
+    duration: 60
   }
 ];
 
@@ -153,7 +173,9 @@ const chapter3Scenarios: Scenario[] = [
     chapter: Chapter.QUANTUM_RUSH,
     level: 1,
     isBoss: false,
-    year: 2010
+    year: 2010,
+    targetMultiplier: 1.4,
+    duration: 30
   },
   {
     id: '3-2',
@@ -165,7 +187,9 @@ const chapter3Scenarios: Scenario[] = [
     chapter: Chapter.QUANTUM_RUSH,
     level: 2,
     isBoss: false,
-    year: 2011
+    year: 2011,
+    targetMultiplier: 1.7,
+    duration: 60
   },
   {
     id: '3-3',
@@ -177,7 +201,9 @@ const chapter3Scenarios: Scenario[] = [
     chapter: Chapter.QUANTUM_RUSH,
     level: 3,
     isBoss: false,
-    year: 2015
+    year: 2015,
+    targetMultiplier: 2.0,
+    duration: 60
   },
   {
     id: '3-4',
@@ -189,7 +215,9 @@ const chapter3Scenarios: Scenario[] = [
     chapter: Chapter.QUANTUM_RUSH,
     level: 4,
     isBoss: false,
-    year: 2017
+    year: 2017,
+    targetMultiplier: 2.5,
+    duration: 60
   }
 ];
 
@@ -205,7 +233,9 @@ const chapter4Scenarios: Scenario[] = [
     chapter: Chapter.CYBER_ERA,
     level: 1,
     isBoss: false,
-    year: 2020
+    year: 2020,
+    targetMultiplier: 1.5,
+    duration: 60
   },
   {
     id: '4-2',
@@ -217,7 +247,9 @@ const chapter4Scenarios: Scenario[] = [
     chapter: Chapter.CYBER_ERA,
     level: 2,
     isBoss: false,
-    year: 2021
+    year: 2021,
+    targetMultiplier: 2.0,
+    duration: 60
   },
   {
     id: '4-3',
@@ -229,7 +261,9 @@ const chapter4Scenarios: Scenario[] = [
     chapter: Chapter.CYBER_ERA,
     level: 3,
     isBoss: false,
-    year: 2022
+    year: 2022,
+    targetMultiplier: 2.5,
+    duration: 60
   },
   {
     id: '4-10',
@@ -244,7 +278,9 @@ const chapter4Scenarios: Scenario[] = [
     chapter: Chapter.CYBER_ERA,
     level: 10,
     isBoss: true,
-    year: 2024
+    year: 2024,
+    targetMultiplier: 4.0,
+    duration: 60
   }
 ];
 
@@ -284,4 +320,15 @@ export const getReviveCost = (level: number): number => {
   const baseCost = 100;
   const multiplier = Math.floor(level / 5) + 1;
   return baseCost * Math.pow(2, multiplier - 1);
+};
+
+// 初始资金
+export const INITIAL_CASH = 10000;
+
+// 局间商店临时道具价格（用现金购买）
+export const TEMPORARY_ITEM_PRICES: Record<TemporaryItemType, number> = {
+  [TemporaryItemType.HIGH_LEVERAGE_PERMIT]: 500,  // 强力大力丸
+  [TemporaryItemType.DYNAMITE]: 300,              // 止损机器人
+  [TemporaryItemType.LUCKY_NEWS]: 800,            // 幸运草
+  [TemporaryItemType.TIME_FREEZE]: 400            // 时间冻结液
 };
