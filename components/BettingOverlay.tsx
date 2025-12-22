@@ -1,21 +1,41 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Side, Scenario } from '../types';
 
 interface Props {
   onStart: (side: Side, leverage: number, scenario: Scenario) => void;
   scenarios: Scenario[];
   leverageOptions: number[];
+  onBack: () => void;
+  initialScenario?: Scenario;
 }
 
-const BettingOverlay: React.FC<Props> = ({ onStart, scenarios, leverageOptions }) => {
+const BettingOverlay: React.FC<Props> = ({ onStart, scenarios, leverageOptions, onBack, initialScenario }) => {
   const [side, setSide] = useState<Side>(Side.LONG);
   const [leverage, setLeverage] = useState(5);
-  const [selectedScenario, setSelectedScenario] = useState(scenarios[0]);
+  const [selectedScenario, setSelectedScenario] = useState<Scenario>(
+    initialScenario || scenarios[0]
+  );
+
+  // 当 initialScenario 变化时，更新选中的场景
+  useEffect(() => {
+    if (initialScenario) {
+      setSelectedScenario(initialScenario);
+    }
+  }, [initialScenario]);
 
   return (
     <div className="z-30 w-full max-w-4xl p-8 bg-slate-900/90 border-t-4 border-cyan-500 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom duration-500">
-      <h2 className="orbitron text-3xl font-bold mb-8 text-white text-center">量子交易塔 - 入场配置</h2>
+      <div className="flex justify-between items-center mb-8">
+        <button
+          onClick={onBack}
+          className="px-6 py-3 border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition-all orbitron text-sm uppercase tracking-widest"
+        >
+          返回
+        </button>
+        <h2 className="orbitron text-3xl font-bold text-white">量子交易塔 - 入场配置</h2>
+        <div className="w-24"></div>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* Left Column: Side & Leverage */}

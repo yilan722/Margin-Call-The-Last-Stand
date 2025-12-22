@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Scenario, PlayerState, Side } from '../types';
+import { Scenario, PlayerState, Side, Equipment, ConsumableType, EquipmentType } from '../types';
 import KLineChart from './KLineChart';
 
 interface Props {
@@ -9,19 +9,42 @@ interface Props {
   currentIndex: number;
   commentary: string;
   onJumpOut: () => void;
+  onSafeExtract: () => void; // 安全撤离
   onAddMargin: () => void;
   onUseHammer: () => void;
+  onUseConsumable: (type: ConsumableType) => void; // 使用消耗品
   marginBuffer: number;
+  equipment: Equipment[]; // 装备列表
+  consumables: { type: ConsumableType; count: number }[]; // 可用消耗品
 }
 
-const GameView: React.FC<Props> = ({ scenario, player, currentIndex, commentary, onJumpOut, onAddMargin, onUseHammer, marginBuffer }) => {
+const GameView: React.FC<Props> = ({ 
+  scenario, 
+  player, 
+  currentIndex, 
+  commentary, 
+  onJumpOut, 
+  onSafeExtract,
+  onAddMargin, 
+  onUseHammer,
+  onUseConsumable,
+  marginBuffer,
+  equipment,
+  consumables
+}) => {
   const currentPrice = scenario.data[currentIndex].price;
   const pnl = player.currentPnl;
   
-  // Calculate visual position
-  // 0% PnL is middle (50%). -100% PnL is bottom (0%).
-  // Add marginBuffer to visual height to show the safety net
-  const visualHeight = Math.max(0, 50 + (pnl + marginBuffer) * 0.45); 
+  // 装备效果计算
+  const antiGravityLevel = equipment.find(e => e.type === EquipmentType.ANTI_GRAVITY_ENGINE)?.level || 0;
+  const radarLevel = equipment.find(e => e.type === EquipmentType.HIGH_FREQ_RADAR)?.level || 0;
+  const fallSpeedReduction = antiGravityLevel * 0.1; // 每级减少10%坠落速度
+  const radarWarningTime = radarLevel * 0.5; // 每级增加0.5秒预警
+  
+  // Calculate visual position with equipment effects
+  // 反重力引擎效果：减少下跌速度（视觉上表现为更高的位置）
+  const equipmentBonus = pnl < 0 ? pnl * fallSpeedReduction : 0;
+  const visualHeight = Math.max(0, 50 + (pnl + marginBuffer + equipmentBonus) * 0.45); 
 
   // Mecha Visual Styles
   const isGodOfGamblers = player.leverage >= 50;
@@ -178,6 +201,17 @@ const GameView: React.FC<Props> = ({ scenario, player, currentIndex, commentary,
 
         {/* Action HUD */}
         <div className="bg-slate-950 border border-slate-800 p-6 space-y-4 shadow-2xl">
+          {/* 安全撤离按钮 */}
+          {pnl > 0 && (
+            <button 
+              onClick={onSafeExtract}
+              className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 text-white orbitron font-black text-lg tracking-[0.2em] shadow-[0_0_30px_rgba(6,182,212,0.3)] active:scale-95 transition-all relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+              安全撤离 (Safe Extract) - {Math.floor(pnl)} 💎
+            </button>
+          )}
+          
           <button 
             onClick={onJumpOut}
             className="w-full py-6 bg-amber-600 hover:bg-amber-500 text-white orbitron font-black text-2xl tracking-[0.2em] shadow-[0_0_30px_rgba(245,158,11,0.2)] active:scale-95 transition-all relative overflow-hidden group"
@@ -202,6 +236,46 @@ const GameView: React.FC<Props> = ({ scenario, player, currentIndex, commentary,
                 <span className="text-[8px] opacity-50">HAMMER</span>
             </button>
           </div>
+
+          {/* 消耗品使用 */}
+          {consumables.length > 0 && (
+            <div className="border-t border-slate-800 pt-4 space-y-2">
+              <div className="text-[9px] text-slate-600 orbitron uppercase tracking-widest mb-2">消耗品</div>
+              {consumables.map(cons => {
+                const canUse = cons.count > 0 && !player.usedConsumables.includes(cons.type);
+                return (
+                  <button
+                    key={cons.type}
+                    onClick={() => canUse && onUseConsumable(cons.type)}
+                    disabled={!canUse}
+                    className={`w-full py-2 text-xs orbitron font-black uppercase transition-all ${
+                      canUse
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white'
+                        : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                    }`}
+                  >
+                    {cons.type === ConsumableType.STOP_LOSS_BOT && '熔断保护器'}
+                    {cons.type === ConsumableType.TIME_CAPSULE && '时间胶囊'}
+                    {cons.type === ConsumableType.INSIDER_INFO && '内幕消息卡'}
+                    {cons.count > 0 && ` (${cons.count})`}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          
+          {/* 装备状态显示 */}
+          {(antiGravityLevel > 0 || radarLevel > 0) && (
+            <div className="border-t border-slate-800 pt-4 space-y-1">
+              <div className="text-[9px] text-slate-600 orbitron uppercase tracking-widest mb-2">装备效果</div>
+              {antiGravityLevel > 0 && (
+                <div className="text-[10px] text-cyan-400">反重力引擎 Lv{antiGravityLevel}</div>
+              )}
+              {radarLevel > 0 && (
+                <div className="text-[10px] text-cyan-400">高频雷达 Lv{radarLevel} (+{radarWarningTime.toFixed(1)}s)</div>
+              )}
+            </div>
+          )}
           
           <div className="text-[8px] text-slate-700 text-center orbitron font-black uppercase tracking-[0.2em] animate-pulse">
             System Integrity: 98.4%
