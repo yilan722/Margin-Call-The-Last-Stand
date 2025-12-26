@@ -83,6 +83,49 @@
 }
 </script>
 <link rel="stylesheet" href="/index.css">
+<script>
+// 支付回调辅助脚本 - 检测顶层窗口的支付参数并传递给 iframe 中的游戏
+(function() {
+  // 检查 URL 中是否有支付参数
+  const urlParams = new URLSearchParams(window.location.search);
+  const paymentStatus = urlParams.get('payment');
+  const sessionId = urlParams.get('session_id');
+  const packageId = urlParams.get('package_id');
+
+  if (paymentStatus && sessionId && packageId) {
+    console.log('🔍 Payment params detected in top window:', { paymentStatus, sessionId, packageId });
+    
+    // 存储支付参数，供游戏代码读取
+    window.__PAYMENT_PARAMS__ = {
+      paymentStatus: paymentStatus,
+      sessionId: sessionId,
+      packageId: packageId
+    };
+    
+    // 如果游戏在 iframe 中，尝试发送消息
+    function sendPaymentParamsToIframe() {
+      const iframes = document.querySelectorAll('iframe');
+      iframes.forEach(iframe => {
+        try {
+          iframe.contentWindow.postMessage({
+            type: 'PAYMENT_PARAMS',
+            paymentStatus: paymentStatus,
+            sessionId: sessionId,
+            packageId: packageId
+          }, '*');
+          console.log('📤 Sent payment params to iframe');
+        } catch (e) {
+          // 忽略跨域错误
+        }
+      });
+    }
+
+    // 延迟发送，确保 iframe 已加载
+    setTimeout(sendPaymentParamsToIframe, 1000);
+    setTimeout(sendPaymentParamsToIframe, 3000);
+  }
+})();
+</script>
 </head>
 <body>
     <div id="root"></div>

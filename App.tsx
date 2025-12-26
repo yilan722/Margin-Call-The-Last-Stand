@@ -766,10 +766,26 @@ const App: React.FC = () => {
 
   // 处理支付成功回调（从 Stripe 重定向回来）
   useEffect(() => {
+    // 首先尝试从当前窗口读取参数（如果游戏在顶层窗口）
     const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const sessionId = urlParams.get('session_id');
-    const packageId = urlParams.get('package_id');
+    let paymentStatus = urlParams.get('payment');
+    let sessionId = urlParams.get('session_id');
+    let packageId = urlParams.get('package_id');
+
+    // 如果当前窗口没有参数，尝试从顶层窗口读取（如果允许）
+    if (!paymentStatus && window.top && window.top !== window.self) {
+      try {
+        const topUrlParams = new URLSearchParams(window.top.location.search);
+        paymentStatus = topUrlParams.get('payment');
+        sessionId = topUrlParams.get('session_id');
+        packageId = topUrlParams.get('package_id');
+        console.log('📋 Found payment params in top window:', { paymentStatus, sessionId, packageId });
+      } catch (e) {
+        console.log('⚠️ Cannot access top window URL (cross-origin):', e);
+        // 如果无法访问顶层窗口，监听来自顶层窗口的消息
+        console.log('👂 Will listen for payment params from top window via postMessage');
+      }
+    }
 
     console.log('Payment callback check:', { paymentStatus, sessionId, packageId, currentUrl: window.location.href, isTopWindow: window.top === window.self });
 
@@ -859,10 +875,23 @@ const App: React.FC = () => {
     }
   }, []); // 只在组件挂载时执行一次
 
-  // 监听来自支付窗口的消息
+  // 监听来自支付窗口或顶层窗口的消息
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       console.log('📨 Received message:', event.data, 'from origin:', event.origin);
+      
+      // 处理来自顶层窗口的支付参数（当游戏在 iframe 中时）
+      if (event.data && event.data.type === 'PAYMENT_PARAMS') {
+        const { paymentStatus, sessionId, packageId } = event.data;
+        console.log('📋 Received payment params from top window:', { paymentStatus, sessionId, packageId });
+        
+        if (paymentStatus === 'success' && sessionId && packageId) {
+          // 处理支付成功
+          handlePaymentSuccess(sessionId, packageId);
+        }
+        return;
+      }
+      
       // 验证消息来源（可选，但建议在生产环境中验证）
       if (event.data && event.data.type === 'PAYMENT_SUCCESS') {
         console.log('✅ Received payment success message from payment window:', event.data);
