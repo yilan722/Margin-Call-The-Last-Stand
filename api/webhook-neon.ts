@@ -54,58 +54,70 @@ export default async function handler(
   }
 
   // 在 Vercel 中获取原始请求体
-  // Stripe webhook 需要原始 body 字符串来验证签名
+  // 关键：Stripe webhook 需要原始 body 字符串来验证签名
+  // 在 Vercel 中，req.body 可能是字符串、Buffer 或已解析的对象
   let rawBody: string;
   
-  try {
-    // 方法 1: 如果 body 是字符串，直接使用（最常见的情况）
-    if (typeof req.body === 'string') {
-      rawBody = req.body;
-      console.log('✅ Using body as string, length:', rawBody.length);
-    } 
-    // 方法 2: 如果 body 是 Buffer，转换为字符串
-    else if (Buffer.isBuffer(req.body)) {
-      rawBody = req.body.toString('utf8');
-      console.log('✅ Using body as Buffer, converted to string, length:', rawBody.length);
-    }
-    // 方法 3: 检查是否有 rawBody 属性
-    else if ((req as any).rawBody) {
-      if (typeof (req as any).rawBody === 'string') {
-        rawBody = (req as any).rawBody;
-      } else if (Buffer.isBuffer((req as any).rawBody)) {
-        rawBody = (req as any).rawBody.toString('utf8');
-      } else {
-        throw new Error('rawBody is not a string or Buffer');
-      }
-      console.log('✅ Using rawBody property, length:', rawBody.length);
-    }
-    // 方法 4: 如果 body 是对象，说明已经被解析了
-    // 这种情况下，我们需要从请求流中读取原始数据
-    else if (typeof req.body === 'object' && req.body !== null) {
-      console.error('❌ Body was parsed as object. This will cause signature verification to fail.');
-      console.error('Body type:', typeof req.body);
-      console.error('Content-Type:', req.headers['content-type']);
-      
-      // 尝试从 req 中读取原始流（如果可能）
-      // 在 Vercel 中，如果 body 被解析了，我们无法恢复原始字符串
-      // 所以我们需要返回错误
-      return res.status(400).json({ 
-        error: 'Body parsing issue',
-        message: 'Request body was parsed as JSON, but Stripe webhook requires raw body for signature verification.',
-        details: {
-          bodyType: typeof req.body,
-          contentType: req.headers['content-type'],
-          suggestion: 'The webhook endpoint needs to receive the raw body. Check Vercel configuration.'
-        }
-      });
+  // 检查 body 的实际类型
+  const bodyType = typeof req.body;
+  const contentType = req.headers['content-type'] || '';
+  
+  console.log('📋 Request info:', {
+    bodyType,
+    contentType,
+    hasRawBody: !!(req as any).rawBody,
+    bodyIsString: typeof req.body === 'string',
+    bodyIsBuffer: Buffer.isBuffer(req.body),
+    bodyIsObject: typeof req.body === 'object' && req.body !== null
+  });
+  
+  // 方法 1: 检查是否有 rawBody 属性（Vercel 在某些情况下会提供）
+  if ((req as any).rawBody) {
+    if (typeof (req as any).rawBody === 'string') {
+      rawBody = (req as any).rawBody;
+      console.log('✅ Using rawBody property (string), length:', rawBody.length);
+    } else if (Buffer.isBuffer((req as any).rawBody)) {
+      rawBody = (req as any).rawBody.toString('utf8');
+      console.log('✅ Using rawBody property (Buffer), length:', rawBody.length);
     } else {
-      throw new Error(`Unknown body type: ${typeof req.body}`);
+      console.error('❌ rawBody exists but is not string or Buffer');
+      return res.status(400).json({ error: 'Invalid rawBody type' });
     }
-  } catch (error: any) {
-    console.error('❌ Error processing request body:', error);
+  }
+  // 方法 2: 如果 body 是字符串，直接使用
+  else if (typeof req.body === 'string') {
+    rawBody = req.body;
+    console.log('✅ Using body as string, length:', rawBody.length);
+  }
+  // 方法 3: 如果 body 是 Buffer，转换为字符串
+  else if (Buffer.isBuffer(req.body)) {
+    rawBody = req.body.toString('utf8');
+    console.log('✅ Using body as Buffer, converted to string, length:', rawBody.length);
+  }
+  // 方法 4: 如果 body 是对象，说明已经被解析了
+  // 在 Vercel 中，如果 Content-Type 是 application/json，body 会被自动解析
+  // 这种情况下，我们无法恢复原始字符串，签名验证会失败
+  else if (typeof req.body === 'object' && req.body !== null) {
+    console.error('❌ CRITICAL: Body was parsed as object/JSON');
+    console.error('This means Vercel automatically parsed the JSON body.');
+    console.error('We cannot recover the original string, so signature verification will fail.');
+    console.error('Details:', {
+      bodyType,
+      contentType,
+      bodyKeys: Object.keys(req.body).slice(0, 10), // 只显示前10个键
+      bodyStringified: JSON.stringify(req.body).substring(0, 200) // 只显示前200个字符
+    });
+    
+    // 尝试使用 JSON.stringify 作为最后手段（虽然通常不会工作）
+    // 但这会导致签名验证失败，因为 JSON.stringify 会改变格式
+    rawBody = JSON.stringify(req.body);
+    console.warn('⚠️ Attempting to use stringified body (signature verification will likely fail)');
+  } else {
+    console.error('❌ Unknown body type:', bodyType);
     return res.status(400).json({ 
-      error: 'Failed to process request body',
-      message: error.message
+      error: 'Invalid request body type',
+      bodyType,
+      contentType
     });
   }
 

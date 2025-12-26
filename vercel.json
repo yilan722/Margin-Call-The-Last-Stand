@@ -3,6 +3,16 @@
     "api/webhook-neon.ts": {
       "includeFiles": "**/*"
     }
-  }
+  },
+  "routes": [
+    {
+      "src": "/api/webhook-neon",
+      "dest": "/api/webhook-neon",
+      "methods": ["POST"],
+      "headers": {
+        "content-type": "application/json"
+      }
+    }
+  ]
 }
 
