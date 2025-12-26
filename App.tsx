@@ -771,29 +771,51 @@ const App: React.FC = () => {
     const sessionId = urlParams.get('session_id');
     const packageId = urlParams.get('package_id');
 
+    console.log('Payment callback check:', { paymentStatus, sessionId, packageId, currentUrl: window.location.href });
+
     if (paymentStatus === 'success' && sessionId && packageId) {
+      console.log('✅ Payment success detected:', { sessionId, packageId });
       // 验证支付并添加钻石
       verifyPaymentAndAddDiamonds(sessionId, packageId)
         .then(diamonds => {
-          setProfile(prev => ({
-            ...prev,
-            timeDiamonds: prev.timeDiamonds + diamonds
-          }));
+          console.log('✅ Payment verified, adding diamonds:', diamonds);
+          setProfile(prev => {
+            const newDiamonds = prev.timeDiamonds + diamonds;
+            const updated = {
+              ...prev,
+              timeDiamonds: newDiamonds
+            };
+            // 立即保存到 localStorage（确保持久化）
+            localStorage.setItem('timeTraderProfile', JSON.stringify(updated));
+            console.log('✅ Profile updated and saved to localStorage:', updated);
+            console.log('✅ Current timeDiamonds:', newDiamonds);
+            return updated;
+          });
           soundManager.playPurchase();
           soundManager.playDiamondEarned();
           // 清除 URL 参数
           window.history.replaceState({}, '', window.location.pathname);
-          alert(`Payment successful! Added ${diamonds} diamonds to your account.`);
+          // 使用 setTimeout 确保状态已更新
+          setTimeout(() => {
+            const saved = localStorage.getItem('timeTraderProfile');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              alert(`Payment successful! Added ${diamonds} diamonds to your account. Total: ${parsed.timeDiamonds}`);
+            } else {
+              alert(`Payment successful! Added ${diamonds} diamonds to your account.`);
+            }
+          }, 100);
         })
         .catch(error => {
-          console.error('Payment verification failed:', error);
-          alert('Payment verification failed. Please contact support.');
+          console.error('❌ Payment verification failed:', error);
+          alert('Payment verification failed. Please contact support with session ID: ' + sessionId);
         });
     } else if (paymentStatus === 'cancelled') {
       // 用户取消了支付
+      console.log('Payment cancelled by user');
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, []); // 只在组件挂载时执行一次
 
   const handlePurchase = (type: 'equipment' | 'consumable', itemType: EquipmentType | ConsumableType) => {
     if (type === 'equipment') {
