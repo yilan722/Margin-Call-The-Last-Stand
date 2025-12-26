@@ -92,9 +92,31 @@ export async function createCheckoutSession(packageId: string): Promise<string> 
   // 使用真实 API（生产环境或开发环境启用真实支付）
   try {
     // 获取当前页面的完整 URL（用于回调）
-    // 如果在 iframe 中，使用顶层窗口的 URL
-    const currentWindow = window.top || window;
-    const returnUrl = currentWindow.location.origin + currentWindow.location.pathname;
+    // 由于跨域限制，无法访问 window.top.location，使用当前窗口的 URL
+    let returnUrl: string;
+    try {
+      // 尝试获取顶层窗口的 URL（如果允许）
+      if (window.top && window.top !== window.self) {
+        returnUrl = window.top.location.origin + window.top.location.pathname;
+      } else {
+        returnUrl = window.location.origin + window.location.pathname;
+      }
+    } catch (e) {
+      // 跨域访问被阻止，使用当前窗口的 URL 或 document.referrer
+      try {
+        // 尝试从 referrer 获取
+        const referrer = document.referrer;
+        if (referrer) {
+          const url = new URL(referrer);
+          returnUrl = url.origin + url.pathname;
+        } else {
+          returnUrl = window.location.origin + window.location.pathname;
+        }
+      } catch {
+        // 最后的备选方案：使用当前窗口
+        returnUrl = window.location.origin + window.location.pathname;
+      }
+    }
     
     const response = await fetch(`${getApiBaseUrl()}/api/create-checkout-session`, {
       method: 'POST',
@@ -196,11 +218,18 @@ export async function initiateStripeCheckout(packageId: string): Promise<void> {
     // 如果是真实的 Stripe Session URL，重定向到支付页面
     // 使用 window.top 确保在顶层窗口重定向（避免 iframe 问题）
     if (sessionUrl && sessionUrl.startsWith('https://checkout.stripe.com')) {
-      // 检查是否在 iframe 中，如果是则使用顶层窗口重定向
-      if (window.top && window.top !== window.self) {
-        window.top.location.href = sessionUrl;
-      } else {
-        window.location.href = sessionUrl;
+      // 检查是否在 iframe 中，如果是则尝试使用顶层窗口重定向
+      try {
+        if (window.top && window.top !== window.self) {
+          // 尝试在顶层窗口打开（如果允许）
+          window.top.location.href = sessionUrl;
+        } else {
+          window.location.href = sessionUrl;
+        }
+      } catch (e) {
+        // 跨域访问被阻止，使用 window.open 在新窗口打开
+        console.warn('Cannot access top window due to cross-origin restriction, opening in new window:', e);
+        window.open(sessionUrl, '_blank', 'noopener,noreferrer');
       }
     } else if (import.meta.env.DEV && !shouldUseRealPayment()) {
       // 开发模式（模拟支付）：不重定向
