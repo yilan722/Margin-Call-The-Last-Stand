@@ -104,10 +104,58 @@ const App: React.FC = () => {
 
   const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 保存档案到localStorage
+  // 保存档案到localStorage并同步到 Neon 数据库
   useEffect(() => {
     localStorage.setItem('timeTraderProfile', JSON.stringify(profile));
+    
+    // 同步到 Neon 数据库（静默失败，不影响游戏）
+    const userId = localStorage.getItem('userId') || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    if (!localStorage.getItem('userId')) {
+      localStorage.setItem('userId', userId);
+    }
+    
+    syncPlayerToNeon(profile).catch(err => {
+      // 静默失败，只在开发环境显示日志
+      if (import.meta.env.DEV) {
+        console.log('Neon sync failed (this is OK if Neon is not configured):', err);
+      }
+    });
   }, [profile]);
+
+  // 游戏启动时从数据库加载数据（如果存在）
+  useEffect(() => {
+    const loadFromDatabase = async () => {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+      
+      try {
+        const dbProfile = await getPlayerFromNeon(userId);
+        if (dbProfile) {
+          console.log('✅ Loaded profile from Neon database:', dbProfile);
+          // 合并数据库数据和 localStorage 数据（数据库优先）
+          const saved = localStorage.getItem('timeTraderProfile');
+          if (saved) {
+            const localProfile = JSON.parse(saved);
+            // 如果数据库的钻石更多，使用数据库的值
+            if (dbProfile.timeDiamonds > localProfile.timeDiamonds) {
+              setProfile(prev => ({
+                ...prev,
+                ...dbProfile,
+                // 保留本地的一些状态（如当前游戏状态）
+                currentCash: prev.currentCash || dbProfile.currentCash
+              }));
+            }
+          } else {
+            setProfile(dbProfile);
+          }
+        }
+      } catch (error) {
+        console.log('Could not load from Neon (this is OK if Neon is not configured):', error);
+      }
+    };
+    
+    loadFromDatabase();
+  }, []); // 只在组件挂载时执行一次
 
   // 初始化音效系统（在用户首次交互后）
   useEffect(() => {
