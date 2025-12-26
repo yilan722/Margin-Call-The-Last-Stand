@@ -19,6 +19,7 @@ import { GoogleGenAI } from "@google/genai";
 import { i18n, Language } from './utils/i18n';
 import { getTotalDiamonds } from './utils/paymentConfig';
 import { initiateStripeCheckout, verifyPaymentAndAddDiamonds } from './utils/paymentService';
+import { getPlayerFromNeon, syncPlayerToNeon, pollDiamondUpdates } from './utils/neonService';
 
 // 初始化玩家档案
 const createInitialProfile = (): PlayerProfile => ({
@@ -754,9 +755,42 @@ const App: React.FC = () => {
         alert(`Successfully purchased ${diamondsToAdd} diamonds! (Development mode)`);
       } else {
         // 使用真实 Stripe Checkout
+        const userId = localStorage.getItem('userId') || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        if (!localStorage.getItem('userId')) {
+          localStorage.setItem('userId', userId);
+        }
+        const currentDiamonds = profile.timeDiamonds;
+        
+        // 启动支付流程
         await initiateStripeCheckout(packageId);
-        // 支付成功后，Stripe会重定向回来，需要在重定向回调中处理
-        // 或者使用 webhook 来处理支付成功事件
+        
+        // 关闭钻石商店
+        setShowDiamondShop(false);
+        
+        // 显示提示信息
+        alert('Payment window opened. Please complete the payment. The game will automatically update when payment is successful.');
+        
+        // 开始轮询检查钻石更新（每2秒检查一次，最多30次，共60秒）
+        pollDiamondUpdates(
+          userId,
+          currentDiamonds,
+          (newDiamonds: number) => {
+            console.log('✅ Diamonds updated from database:', newDiamonds);
+            setProfile(prev => {
+              const updated = {
+                ...prev,
+                timeDiamonds: newDiamonds
+              };
+              localStorage.setItem('timeTraderProfile', JSON.stringify(updated));
+              return updated;
+            });
+            soundManager.playPurchase();
+            soundManager.playDiamondEarned();
+            alert(`Payment successful! Added ${newDiamonds - currentDiamonds} diamonds to your account. Total: ${newDiamonds}`);
+          },
+          30, // 最多轮询30次
+          2000 // 每2秒检查一次
+        );
       }
     } catch (error) {
       console.error('Purchase failed:', error);

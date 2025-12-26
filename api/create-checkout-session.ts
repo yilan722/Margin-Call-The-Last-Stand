@@ -79,6 +79,8 @@ export default async function handler(
 
     const stripe = getStripe();
     const { packageId, userId, returnUrl } = req.body;
+    
+    console.log('Creating checkout session:', { packageId, userId, returnUrl });
 
     if (!packageId || !DIAMOND_PACKAGES[packageId]) {
       return res.status(400).json({ error: 'Invalid package ID' });
