@@ -19,12 +19,23 @@ function shouldUseRealPayment(): boolean {
 
 /**
  * 获取 API 基础 URL
+ * 自动检测部署平台并选择合适的 API 端点
  */
 function getApiBaseUrl(): string {
-  // 开发环境使用本地，生产环境使用实际域名
+  // 开发环境使用本地
   if (import.meta.env.DEV) {
-    return 'http://localhost:3000'; // 或你的开发服务器地址
+    return 'http://localhost:3000';
   }
+  
+  // 检查是否在 Itch.io 上（静态托管，需要外部 API）
+  const hostname = window.location.hostname;
+  if (hostname.includes('itch.io') || hostname.includes('itch.zone')) {
+    // Itch.io 部署：使用 Vercel API
+    // 替换为你的实际 Vercel 项目域名
+    return 'https://margin-call-the-last-stand.vercel.app';
+  }
+  
+  // 其他部署（如 Vercel 本身）：使用当前域名
   return window.location.origin;
 }
 

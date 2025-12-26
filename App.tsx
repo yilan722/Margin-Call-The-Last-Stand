@@ -1082,8 +1082,17 @@ const App: React.FC = () => {
       
       {phase === GamePhase.LOBBY && (
         <div className="z-20 text-center flex flex-col items-center">
-          <div className="mb-8 w-32 h-32 border-4 border-cyan-500 rounded-full flex items-center justify-center animate-pulse">
-            <span className="text-6xl">🤖</span>
+          <div className="mb-8 w-32 h-32 border-4 border-amber-500 rounded-full flex items-center justify-center animate-pulse bg-gradient-to-br from-amber-900/30 to-yellow-900/30 shadow-[0_0_30px_rgba(245,158,11,0.4)] relative overflow-hidden">
+            {/* 大富翁风格图标：高帽商人 */}
+            <div className="flex flex-col items-center justify-center relative z-10">
+              <div className="text-5xl mb-0 leading-none">🎩</div>
+              <div className="text-4xl mt-0 leading-none">👔</div>
+              <div className="text-2xl mt-0 leading-none">💼</div>
+            </div>
+            {/* 背景装饰：金币 */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-20">
+              <span className="text-6xl">💰</span>
+            </div>
           </div>
           <h1 className="orbitron text-7xl font-black mb-4 glitch-text tracking-[0.2em] text-white">{i18n.t('lobby.title')}</h1>
           <p className="text-cyan-400 mb-4 tracking-[0.5em] orbitron text-xs">{i18n.t('lobby.subtitle')}</p>

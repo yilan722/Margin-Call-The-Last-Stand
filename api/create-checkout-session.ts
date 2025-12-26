@@ -27,9 +27,9 @@ function getStripe(): Stripe {
     if (!secretKey) {
       throw new Error('STRIPE_SECRET_KEY is not set in environment variables');
     }
-    stripeInstance = new Stripe(secretKey, {
-      apiVersion: '2024-12-18.acacia',
-    });
+          stripeInstance = new Stripe(secretKey, {
+            apiVersion: '2025-02-24.acacia',
+          });
   }
   return stripeInstance;
 }
@@ -48,6 +48,20 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  // 添加 CORS 头（支持 Itch.io 等跨域请求）
+  const origin = req.headers.origin || req.headers.referer;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  
+  // 处理 OPTIONS 预检请求
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
