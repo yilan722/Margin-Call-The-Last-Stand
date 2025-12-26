@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        button {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0284c7;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            color: #10b981;
+        }
+        .error {
+            color: #ef4444;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 4px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Payment API 测试工具</h1>
+    
+    <div class="test-section">
+        <h2>1. 测试 API 端点可访问性</h2>
+        <label>API Base URL:</label>
+        <input type="text" id="apiUrl" value="https://your-domain.vercel.app" placeholder="https://your-domain.vercel.app">
+        <button onclick="testApiAccess()">测试 API 可访问性</button>
+        <div id="apiResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 测试创建支付会话</h2>
+        <label>套餐 ID:</label>
+        <select id="packageId">
+            <option value="starter">Starter - $0.99 (100 💎)</option>
+            <option value="small">Small - $1.99 (275 💎)</option>
+            <option value="medium">Medium - $3.99 (600 💎)</option>
+            <option value="large">Large - $6.99 (1250 💎)</option>
+        </select>
+        <button onclick="testCreateSession()">创建支付会话</button>
+        <div id="sessionResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 测试支付验证</h2>
+        <label>Session ID (从上面的测试获取):</label>
+        <input type="text" id="sessionId" placeholder="cs_test_...">
+        <button onclick="testVerifyPayment()">验证支付</button>
+        <div id="verifyResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 完整支付流程测试</h2>
+        <p>点击下面的按钮会创建一个真实的支付会话，并跳转到 Stripe Checkout。</p>
+        <button onclick="testFullFlow()">开始完整支付测试</button>
+        <div id="flowResult" class="result"></div>
+    </div>
+
+    <script>
+        function getApiUrl() {
+            return document.getElementById('apiUrl').value || window.location.origin;
+        }
+
+        async function testApiAccess() {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.textContent = '测试中...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${getApiUrl()}/api/create-checkout-session`, {
+                    method: 'GET'
+                });
+                
+                if (response.status === 405) {
+                    resultDiv.textContent = '✅ API 正常工作！\n返回 405 表示 API 存在，但需要 POST 请求（这是正常的）';
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `响应状态: ${response.status}\n${await response.text()}`;
+                    resultDiv.className = 'result';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ 错误: ${error.message}\n\n可能的原因：\n1. API 端点不存在\n2. 网络问题\n3. CORS 问题`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testCreateSession() {
+            const resultDiv = document.getElementById('sessionResult');
+            const packageId = document.getElementById('packageId').value;
+            resultDiv.textContent = '创建中...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${getApiUrl()}/api/create-checkout-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        packageId: packageId,
+                        userId: 'test-user-' + Date.now()
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.url) {
+                    resultDiv.textContent = `✅ 支付会话创建成功！\n\nSession ID: ${data.sessionId}\nCheckout URL: ${data.url}\n\n点击下面的链接测试支付：\n${data.url}`;
+                    resultDiv.className = 'result success';
+                    document.getElementById('sessionId').value = data.sessionId;
+                } else {
+                    resultDiv.textContent = `❌ 创建失败\n\n状态: ${response.status}\n错误: ${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ 错误: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testVerifyPayment() {
+            const resultDiv = document.getElementById('verifyResult');
+            const sessionId = document.getElementById('sessionId').value;
+            
+            if (!sessionId) {
+                resultDiv.textContent = '❌ 请输入 Session ID';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            resultDiv.textContent = '验证中...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${getApiUrl()}/api/verify-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ sessionId }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    resultDiv.textContent = `✅ 支付验证成功！\n\n钻石数量: ${data.diamonds}\n套餐 ID: ${data.packageId}\n用户 ID: ${data.userId}`;
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = `❌ 验证失败\n\n状态: ${response.status}\n错误: ${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ 错误: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testFullFlow() {
+            const resultDiv = document.getElementById('flowResult');
+            const packageId = document.getElementById('packageId').value;
+            resultDiv.textContent = '创建支付会话...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${getApiUrl()}/api/create-checkout-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        packageId: packageId,
+                        userId: 'test-user-' + Date.now()
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.url) {
+                    resultDiv.textContent = `✅ 支付会话已创建！\n\n正在跳转到 Stripe Checkout...\n\nSession ID: ${data.sessionId}`;
+                    resultDiv.className = 'result success';
+                    
+                    // 跳转到 Stripe Checkout
+                    window.location.href = data.url;
+                } else {
+                    resultDiv.textContent = `❌ 创建失败\n\n${JSON.stringify(data, null, 2)}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ 错误: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        // 自动检测当前域名
+        window.onload = function() {
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                document.getElementById('apiUrl').value = window.location.origin;
+            }
+        };
+    </script>
+</body>
+</html>
+

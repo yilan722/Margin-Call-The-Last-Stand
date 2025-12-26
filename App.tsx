@@ -13,9 +13,12 @@ import IntermissionShop from './components/IntermissionShop';
 import MarginDialog from './components/MarginDialog';
 import PhaseShiftDialog from './components/PhaseShiftDialog';
 import QuantumGrapple from './components/QuantumGrapple';
+import DiamondShop from './components/DiamondShop';
 import { soundManager } from './utils/soundManager';
 import { GoogleGenAI } from "@google/genai";
 import { i18n, Language } from './utils/i18n';
+import { getTotalDiamonds } from './utils/paymentConfig';
+import { initiateStripeCheckout, verifyPaymentAndAddDiamonds } from './utils/paymentService';
 
 // 初始化玩家档案
 const createInitialProfile = (): PlayerProfile => ({
@@ -86,6 +89,7 @@ const App: React.FC = () => {
   const [showMarginDialog, setShowMarginDialog] = useState<'margin' | 'cut' | null>(null); // 显示补仓/砍仓对话框
   const [showPhaseShiftDialog, setShowPhaseShiftDialog] = useState(false); // 显示反手对话框（旧版）
   const [showQuantumGrapple, setShowQuantumGrapple] = useState(false); // 显示光速飞爪
+  const [showDiamondShop, setShowDiamondShop] = useState(false); // 显示钻石商店
   const [currentBalance, setCurrentBalance] = useState(0); // 当前余额（用于对话框）
   const [currentLevelTarget, setCurrentLevelTarget] = useState(0); // 当前关卡目标金额
   const [finalBalance, setFinalBalance] = useState(0); // 关卡结束时的最终余额
@@ -729,6 +733,68 @@ const App: React.FC = () => {
     }
   };
 
+  // 处理钻石购买
+  const handlePurchaseDiamonds = async (packageId: string) => {
+    try {
+      console.log('Initiating purchase for package:', packageId);
+      
+      // 检查是否使用真实支付
+      const useRealPayment = import.meta.env.VITE_USE_REAL_PAYMENT === 'true' || !import.meta.env.DEV;
+      
+      // 如果是开发环境且未启用真实支付，直接添加钻石（模拟支付成功）
+      if (import.meta.env.DEV && !useRealPayment) {
+        const diamondsToAdd = getTotalDiamonds(packageId);
+        setProfile(prev => ({
+          ...prev,
+          timeDiamonds: prev.timeDiamonds + diamondsToAdd
+        }));
+        soundManager.playPurchase();
+        soundManager.playDiamondEarned();
+        setShowDiamondShop(false);
+        alert(`Successfully purchased ${diamondsToAdd} diamonds! (Development mode)`);
+      } else {
+        // 使用真实 Stripe Checkout
+        await initiateStripeCheckout(packageId);
+        // 支付成功后，Stripe会重定向回来，需要在重定向回调中处理
+        // 或者使用 webhook 来处理支付成功事件
+      }
+    } catch (error) {
+      console.error('Purchase failed:', error);
+      alert(i18n.t('diamondShop.purchaseError'));
+    }
+  };
+
+  // 处理支付成功回调（从 Stripe 重定向回来）
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const sessionId = urlParams.get('session_id');
+    const packageId = urlParams.get('package_id');
+
+    if (paymentStatus === 'success' && sessionId && packageId) {
+      // 验证支付并添加钻石
+      verifyPaymentAndAddDiamonds(sessionId, packageId)
+        .then(diamonds => {
+          setProfile(prev => ({
+            ...prev,
+            timeDiamonds: prev.timeDiamonds + diamonds
+          }));
+          soundManager.playPurchase();
+          soundManager.playDiamondEarned();
+          // 清除 URL 参数
+          window.history.replaceState({}, '', window.location.pathname);
+          alert(`Payment successful! Added ${diamonds} diamonds to your account.`);
+        })
+        .catch(error => {
+          console.error('Payment verification failed:', error);
+          alert('Payment verification failed. Please contact support.');
+        });
+    } else if (paymentStatus === 'cancelled') {
+      // 用户取消了支付
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   const handlePurchase = (type: 'equipment' | 'consumable', itemType: EquipmentType | ConsumableType) => {
     if (type === 'equipment') {
       const equipmentType = itemType as EquipmentType;
@@ -1096,6 +1162,16 @@ const App: React.FC = () => {
           profile={profile}
           onPurchase={handlePurchase}
           onBack={() => setPhase(GamePhase.LOBBY)}
+          onOpenDiamondShop={() => setShowDiamondShop(true)}
+        />
+      )}
+
+      {/* Diamond Shop Modal */}
+      {showDiamondShop && (
+        <DiamondShop
+          currentDiamonds={profile.timeDiamonds}
+          onPurchase={handlePurchaseDiamonds}
+          onClose={() => setShowDiamondShop(false)}
         />
       )}
 
@@ -1174,6 +1250,7 @@ const App: React.FC = () => {
             penaltyInfo={penaltyInfo}
           onExtract={handleExtractDiamonds}
           onRevive={handleRevive}
+          onOpenDiamondShop={() => setShowDiamondShop(true)}
             onContinue={() => {
               // 点击"放弃本关"：如果失败/爆仓，直接重置（因为玩家选择放弃，不想复活）
               if (player) {

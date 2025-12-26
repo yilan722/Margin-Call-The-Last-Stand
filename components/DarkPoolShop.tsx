@@ -7,9 +7,10 @@ interface Props {
   profile: PlayerProfile;
   onPurchase: (type: 'equipment' | 'consumable', itemType: EquipmentType | ConsumableType) => void;
   onBack: () => void;
+  onOpenDiamondShop?: () => void;
 }
 
-const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
+const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack, onOpenDiamondShop }) => {
   const [selectedTab, setSelectedTab] = useState<'equipment' | 'consumable'>('consumable'); // 默认显示消耗品
 
   const getEquipmentLevel = (type: EquipmentType): number => {

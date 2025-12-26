@@ -1,0 +1,194 @@
+// ==========================================
+// 支付服务 - 处理 Stripe 支付
+// ==========================================
+
+import { DIAMOND_PACKAGES, getTotalDiamonds } from './paymentConfig';
+
+/**
+ * 是否使用真实支付（即使是在开发模式）
+ * 可以通过环境变量 VITE_USE_REAL_PAYMENT=true 来启用
+ */
+function shouldUseRealPayment(): boolean {
+  // 如果设置了环境变量，使用真实支付
+  if (import.meta.env.VITE_USE_REAL_PAYMENT === 'true') {
+    return true;
+  }
+  // 生产环境总是使用真实支付
+  return !import.meta.env.DEV;
+}
+
+/**
+ * 获取 API 基础 URL
+ */
+function getApiBaseUrl(): string {
+  // 开发环境使用本地，生产环境使用实际域名
+  if (import.meta.env.DEV) {
+    return 'http://localhost:3000'; // 或你的开发服务器地址
+  }
+  return window.location.origin;
+}
+
+/**
+ * 获取用户ID（从 localStorage 或生成临时ID）
+ */
+function getUserId(): string {
+  // 方案1：从 localStorage 获取
+  const profile = localStorage.getItem('timeTraderProfile');
+  if (profile) {
+    try {
+      const parsed = JSON.parse(profile);
+      return parsed.userId || generateUserId();
+    } catch {
+      return generateUserId();
+    }
+  }
+  
+  return generateUserId();
+}
+
+/**
+ * 生成临时用户ID
+ */
+function generateUserId(): string {
+  let userId = localStorage.getItem('userId');
+  if (!userId) {
+    userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('userId', userId);
+  }
+  return userId;
+}
+
+/**
+ * 创建 Stripe Checkout Session
+ * 在生产环境中，调用后端API来创建session
+ */
+export async function createCheckoutSession(packageId: string): Promise<string> {
+  const pkg = DIAMOND_PACKAGES.find(p => p.id === packageId);
+  if (!pkg) {
+    throw new Error('Invalid package ID');
+  }
+
+  // 开发模式：如果未启用真实支付，则模拟
+  if (import.meta.env.DEV && !shouldUseRealPayment()) {
+    console.warn('Development mode: Simulating payment. Set VITE_USE_REAL_PAYMENT=true to use real Stripe API.');
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve('mock-session-id');
+      }, 1000);
+    });
+  }
+
+  // 使用真实 API（生产环境或开发环境启用真实支付）
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        packageId,
+        userId: getUserId(),
+      }),
+    });
+
+    // 读取响应内容（只能读取一次）
+    const contentType = response.headers.get('content-type') || '';
+    let responseData: any;
+    
+    if (contentType.includes('application/json')) {
+      responseData = await response.json();
+    } else {
+      const text = await response.text();
+      // 尝试解析为 JSON
+      try {
+        responseData = JSON.parse(text);
+      } catch {
+        responseData = { error: text || 'Unknown error' };
+      }
+    }
+
+    if (!response.ok) {
+      const errorMessage = responseData.error || responseData.message || 'Failed to create checkout session';
+      const details = responseData.details ? `: ${responseData.details}` : '';
+      throw new Error(`${errorMessage}${details}`);
+    }
+
+    return responseData.url; // Stripe Checkout URL
+  } catch (error) {
+    console.error('Error creating checkout session:', error);
+    throw error;
+  }
+}
+
+/**
+ * 验证支付结果并获取钻石数量
+ * 在生产环境中，调用后端API来验证支付
+ */
+export async function verifyPaymentAndAddDiamonds(
+  sessionId: string,
+  packageId: string
+): Promise<number> {
+  const pkg = DIAMOND_PACKAGES.find(p => p.id === packageId);
+  if (!pkg) {
+    throw new Error('Invalid package ID');
+  }
+
+  // 开发模式：如果未启用真实支付，则模拟
+  if (import.meta.env.DEV && !shouldUseRealPayment()) {
+    console.warn('Development mode: Simulating payment verification. Set VITE_USE_REAL_PAYMENT=true to use real API.');
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const totalDiamonds = getTotalDiamonds(packageId);
+        resolve(totalDiamonds);
+      }, 500);
+    });
+  }
+
+  // 使用真实 API 验证（生产环境或开发环境启用真实支付）
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/verify-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sessionId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Payment verification failed');
+    }
+
+    const data = await response.json();
+    return data.diamonds;
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    throw error;
+  }
+}
+
+/**
+ * 使用 Stripe Checkout 进行支付
+ * 这是推荐的实现方式，因为它更安全且易于集成
+ */
+export async function initiateStripeCheckout(packageId: string): Promise<void> {
+  try {
+    // 创建 Checkout Session
+    const sessionUrl = await createCheckoutSession(packageId);
+    
+    // 如果是真实的 Stripe Session URL，重定向到支付页面
+    if (sessionUrl && sessionUrl.startsWith('https://checkout.stripe.com')) {
+      window.location.href = sessionUrl;
+    } else if (import.meta.env.DEV && !shouldUseRealPayment()) {
+      // 开发模式（模拟支付）：不重定向
+      console.log('Development mode: Payment will be simulated in the UI');
+      throw new Error('Development mode: Please use the simulated payment flow or set VITE_USE_REAL_PAYMENT=true');
+    } else {
+      throw new Error('Invalid checkout URL: ' + sessionUrl);
+    }
+  } catch (error) {
+    console.error('Failed to initiate checkout:', error);
+    throw error;
+  }
+}
+

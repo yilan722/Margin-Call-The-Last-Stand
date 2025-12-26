@@ -129,6 +129,7 @@ export const zh = {
     restart: "重新挑战",
     continue: "继续下一关",
     returnToMap: "返回地图（放弃本关）",
+    buyDiamonds: "购买钻石",
     bossGreed: "恶魔老板的贪婪",
     bossGreedMessage: "你赚了这么多？下一关我要看到增长 ${growthRate} 的业绩！否则卷铺盖走人！",
     bossNormalMessage: "干得不错，继续保持。下一关目标：$${nextTarget}（增长 ${growthRate}）",
@@ -271,6 +272,22 @@ export const zh = {
     stock: "库存",
     buy: "购买",
     requires: "需要",
+    buyDiamonds: "购买钻石",
+  },
+
+  // Diamond Shop
+  diamondShop: {
+    title: "钻石商店",
+    currentDiamonds: "当前钻石: {diamonds} 💎",
+    popular: "热门",
+    bestValue: "超值",
+    bonus: "+{bonus} 赠送",
+    selected: "已选择",
+    selectPackage: "选择套餐",
+    purchase: "购买 ${price}",
+    processing: "处理中...",
+    purchaseError: "购买失败，请重试。",
+    info: "通过 Stripe 安全支付。支付成功后钻石将立即到账。",
   },
 };
 

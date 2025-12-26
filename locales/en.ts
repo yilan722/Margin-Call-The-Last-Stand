@@ -83,9 +83,8 @@ export const en = {
     goodTiming: "Good Timing",
     normalTiming: "Normal Timing",
     badTiming: "Bad Timing",
-        startTiming: "Start Timing Selection",
-        confirmShift: "Confirm Shift (Stop Pointer)",
-        stopped: "Stopped",
+    startTiming: "Start Timing Selection",
+    confirmShift: "Confirm Shift (Stop Pointer)",
     stopped: "Stopped",
     feePreview: "Estimated Fee",
     perfectFree: "✨ Perfect timing, free switch!",
@@ -157,6 +156,7 @@ export const en = {
     canBribeHR: "You can use diamonds to bribe HR to make up the shortfall and avoid penalties.",
     bribeHR: "Bribe HR - Cost ${cost} 💎 to make up shortfall (avoid penalty)",
     insufficientDiamondsForBribe: "Insufficient diamonds, cannot bribe (need ${cost} 💎, currently have ${current} 💎)",
+    buyDiamonds: "Buy Diamonds",
     highWatermark: "High Watermark (High Watermark)",
     currentDiamonds: "Current Diamonds (Time Diamonds)",
     historicalVerdict: "Historical Verdict (Historical Verdict)",
@@ -303,6 +303,21 @@ export const en = {
     stock: "Stock",
     buy: "Buy",
     requires: "Requires",
+  },
+
+  // Diamond Shop
+  diamondShop: {
+    title: "Diamond Store",
+    currentDiamonds: "Current Diamonds: {diamonds} 💎",
+    popular: "POPULAR",
+    bestValue: "BEST VALUE",
+    bonus: "+{bonus} Bonus",
+    selected: "Selected",
+    selectPackage: "Select a Package",
+    purchase: "Purchase for ${price}",
+    processing: "Processing...",
+    purchaseError: "Purchase failed. Please try again.",
+    info: "Secure payment via Stripe. Your diamonds will be added immediately after successful payment.",
   },
 };
 

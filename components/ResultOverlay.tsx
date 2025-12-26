@@ -30,6 +30,7 @@ interface Props {
   onContinue: () => void; // 继续游戏（返回地图）
   onRestart: () => void; // 重新开始本关
   onBack: () => void; // 返回
+  onOpenDiamondShop?: () => void; // 打开钻石商店
 }
 
 const ResultOverlay: React.FC<Props> = ({ 
@@ -45,7 +46,8 @@ const ResultOverlay: React.FC<Props> = ({
   onRevive, 
   onContinue,
   onRestart,
-  onBack
+  onBack,
+  onOpenDiamondShop
 }) => {
   const isDead = player.isDead;
   const isSurvivor = player.isExited && !player.isDead;
@@ -352,8 +354,20 @@ const ResultOverlay: React.FC<Props> = ({
                   {i18n.t('result.applyEmergencyFunds', { cost: reviveCost })}
                 </button>
               ) : (
-                <div className="w-full py-3 md:py-4 bg-slate-800 text-slate-600 text-center orbitron font-black text-sm md:text-base tracking-widest">
-                  {i18n.t('result.insufficientDiamondsForRevive', { cost: reviveCost, current: updatedTimeDiamonds })}
+                <div className="space-y-3">
+                  <div className="w-full py-3 md:py-4 bg-slate-800 text-slate-600 text-center orbitron font-black text-sm md:text-base tracking-widest">
+                    {i18n.t('result.insufficientDiamondsForRevive', { cost: reviveCost, current: updatedTimeDiamonds })}
+                  </div>
+                  {onOpenDiamondShop && (
+                    <button
+                      onClick={() => {
+                        onOpenDiamondShop();
+                      }}
+                      className="w-full py-3 md:py-4 bg-cyan-600 hover:bg-cyan-500 text-white orbitron font-black text-sm md:text-base tracking-widest transition-all shadow-[0_0_30px_rgba(6,182,212,0.5)]"
+                    >
+                      💎 {i18n.t('result.buyDiamonds')}
+                    </button>
+                  )}
                 </div>
               )}
               <button 
@@ -401,8 +415,20 @@ const ResultOverlay: React.FC<Props> = ({
                   {i18n.t('result.bribeHR', { cost: reviveCost })}
                 </button>
               ) : (
-                <div className="w-full py-3 md:py-4 bg-slate-800 text-slate-600 text-center orbitron font-black text-sm md:text-base tracking-widest">
-                  {i18n.t('result.insufficientDiamondsForBribe', { cost: reviveCost, current: updatedTimeDiamonds })}
+                <div className="space-y-3">
+                  <div className="w-full py-3 md:py-4 bg-slate-800 text-slate-600 text-center orbitron font-black text-sm md:text-base tracking-widest">
+                    {i18n.t('result.insufficientDiamondsForBribe', { cost: reviveCost, current: updatedTimeDiamonds })}
+                  </div>
+                  {onOpenDiamondShop && (
+                    <button
+                      onClick={() => {
+                        onOpenDiamondShop();
+                      }}
+                      className="w-full py-3 md:py-4 bg-cyan-600 hover:bg-cyan-500 text-white orbitron font-black text-sm md:text-base tracking-widest transition-all shadow-[0_0_30px_rgba(6,182,212,0.5)]"
+                    >
+                      💎 {i18n.t('result.buyDiamonds')}
+                    </button>
+                  )}
                 </div>
               )}
               <button 
