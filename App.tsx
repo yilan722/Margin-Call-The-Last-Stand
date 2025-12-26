@@ -814,6 +814,7 @@ const App: React.FC = () => {
           // 如果是在新窗口，尝试通知原窗口并关闭
           try {
             if (window.opener && !window.opener.closed) {
+              console.log('📤 Sending payment success message to opener window...');
               // 通知原窗口支付成功
               window.opener.postMessage({
                 type: 'PAYMENT_SUCCESS',
@@ -821,13 +822,20 @@ const App: React.FC = () => {
                 totalDiamonds: newDiamonds,
                 sessionId: sessionId
               }, '*');
+              console.log('✅ Message sent to opener window');
               // 延迟关闭窗口，给用户看到成功消息的时间
               setTimeout(() => {
-                window.close();
+                try {
+                  window.close();
+                } catch (e) {
+                  console.log('Cannot close window (may be blocked by browser):', e);
+                }
               }, 2000);
+            } else {
+              console.log('⚠️ No opener window found or opener is closed');
             }
           } catch (e) {
-            console.log('Cannot communicate with opener window:', e);
+            console.error('❌ Cannot communicate with opener window:', e);
           }
           
           alert(`Payment successful! Added ${diamonds} diamonds to your account. Total: ${newDiamonds}`);
@@ -854,6 +862,7 @@ const App: React.FC = () => {
   // 监听来自支付窗口的消息
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      console.log('📨 Received message:', event.data, 'from origin:', event.origin);
       // 验证消息来源（可选，但建议在生产环境中验证）
       if (event.data && event.data.type === 'PAYMENT_SUCCESS') {
         console.log('✅ Received payment success message from payment window:', event.data);
@@ -869,21 +878,52 @@ const App: React.FC = () => {
               timeDiamonds: totalDiamonds || (currentProfile.timeDiamonds + diamonds)
             };
             localStorage.setItem('timeTraderProfile', JSON.stringify(updated));
+            console.log('✅ Updating profile state from message:', updated);
             setProfile(updated);
             console.log('✅ Profile updated from payment window message:', updated);
+            soundManager.playPurchase();
+            soundManager.playDiamondEarned();
             alert(`Payment successful! Added ${diamonds} diamonds to your account. Total: ${updated.timeDiamonds}`);
           } catch (e) {
-            console.error('Failed to update profile from message:', e);
+            console.error('❌ Failed to update profile from message:', e);
           }
+        } else {
+          console.error('❌ No saved profile found in localStorage');
         }
       }
     };
 
     window.addEventListener('message', handleMessage);
+    console.log('👂 Listening for payment messages...');
     return () => {
       window.removeEventListener('message', handleMessage);
     };
   }, []);
+
+  // 添加定期检查 localStorage 的机制（作为备用方案）
+  useEffect(() => {
+    // 每5秒检查一次 localStorage 是否有更新（用于支付回调）
+    const checkInterval = setInterval(() => {
+      const saved = localStorage.getItem('timeTraderProfile');
+      if (saved) {
+        try {
+          const savedProfile = JSON.parse(saved);
+          // 如果 localStorage 中的钻石数量与当前状态不同，更新状态
+          if (savedProfile.timeDiamonds !== profile.timeDiamonds) {
+            console.log('🔄 Detected diamond change in localStorage, updating state:', {
+              current: profile.timeDiamonds,
+              saved: savedProfile.timeDiamonds
+            });
+            setProfile(savedProfile);
+          }
+        } catch (e) {
+          console.error('Failed to check localStorage:', e);
+        }
+      }
+    }, 5000); // 每5秒检查一次
+
+    return () => clearInterval(checkInterval);
+  }, [profile.timeDiamonds]);
 
   const handlePurchase = (type: 'equipment' | 'consumable', itemType: EquipmentType | ConsumableType) => {
     if (type === 'equipment') {
