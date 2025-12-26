@@ -92,30 +92,21 @@ export async function createCheckoutSession(packageId: string): Promise<string> 
   // 使用真实 API（生产环境或开发环境启用真实支付）
   try {
     // 获取当前页面的完整 URL（用于回调）
-    // 由于跨域限制，无法访问 window.top.location，使用当前窗口的 URL
+    // 由于跨域限制，直接使用当前窗口的 URL，不使用 window.top
     let returnUrl: string;
     try {
-      // 尝试获取顶层窗口的 URL（如果允许）
-      if (window.top && window.top !== window.self) {
-        returnUrl = window.top.location.origin + window.top.location.pathname;
+      // 优先使用 document.referrer（如果是从其他页面跳转来的）
+      const referrer = document.referrer;
+      if (referrer && referrer.includes('itch.io')) {
+        const url = new URL(referrer);
+        returnUrl = url.origin + url.pathname;
       } else {
+        // 否则使用当前窗口的 URL
         returnUrl = window.location.origin + window.location.pathname;
       }
     } catch (e) {
-      // 跨域访问被阻止，使用当前窗口的 URL 或 document.referrer
-      try {
-        // 尝试从 referrer 获取
-        const referrer = document.referrer;
-        if (referrer) {
-          const url = new URL(referrer);
-          returnUrl = url.origin + url.pathname;
-        } else {
-          returnUrl = window.location.origin + window.location.pathname;
-        }
-      } catch {
-        // 最后的备选方案：使用当前窗口
-        returnUrl = window.location.origin + window.location.pathname;
-      }
+      // 最后的备选方案：使用当前窗口
+      returnUrl = window.location.origin + window.location.pathname;
     }
     
     const response = await fetch(`${getApiBaseUrl()}/api/create-checkout-session`, {

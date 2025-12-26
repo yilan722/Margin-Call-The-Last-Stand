@@ -771,7 +771,7 @@ const App: React.FC = () => {
     const sessionId = urlParams.get('session_id');
     const packageId = urlParams.get('package_id');
 
-    console.log('Payment callback check:', { paymentStatus, sessionId, packageId, currentUrl: window.location.href });
+    console.log('Payment callback check:', { paymentStatus, sessionId, packageId, currentUrl: window.location.href, isTopWindow: window.top === window.self });
 
     if (paymentStatus === 'success' && sessionId && packageId) {
       console.log('✅ Payment success detected:', { sessionId, packageId });
@@ -779,32 +779,58 @@ const App: React.FC = () => {
       verifyPaymentAndAddDiamonds(sessionId, packageId)
         .then(diamonds => {
           console.log('✅ Payment verified, adding diamonds:', diamonds);
-          setProfile(prev => {
-            const newDiamonds = prev.timeDiamonds + diamonds;
-            const updated = {
-              ...prev,
-              timeDiamonds: newDiamonds
-            };
-            // 立即保存到 localStorage（确保持久化）
-            localStorage.setItem('timeTraderProfile', JSON.stringify(updated));
-            console.log('✅ Profile updated and saved to localStorage:', updated);
-            console.log('✅ Current timeDiamonds:', newDiamonds);
-            return updated;
-          });
+          
+          // 从 localStorage 读取最新数据（确保使用最新值）
+          const saved = localStorage.getItem('timeTraderProfile');
+          let currentProfile = profile;
+          if (saved) {
+            try {
+              currentProfile = JSON.parse(saved);
+            } catch (e) {
+              console.error('Failed to parse saved profile:', e);
+            }
+          }
+          
+          const newDiamonds = currentProfile.timeDiamonds + diamonds;
+          const updated = {
+            ...currentProfile,
+            timeDiamonds: newDiamonds
+          };
+          
+          // 立即保存到 localStorage（确保持久化）
+          localStorage.setItem('timeTraderProfile', JSON.stringify(updated));
+          console.log('✅ Profile updated and saved to localStorage:', updated);
+          console.log('✅ Current timeDiamonds:', newDiamonds);
+          
+          // 更新状态
+          setProfile(updated);
+          
           soundManager.playPurchase();
           soundManager.playDiamondEarned();
+          
           // 清除 URL 参数
           window.history.replaceState({}, '', window.location.pathname);
-          // 使用 setTimeout 确保状态已更新
-          setTimeout(() => {
-            const saved = localStorage.getItem('timeTraderProfile');
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              alert(`Payment successful! Added ${diamonds} diamonds to your account. Total: ${parsed.timeDiamonds}`);
-            } else {
-              alert(`Payment successful! Added ${diamonds} diamonds to your account.`);
+          
+          // 如果是在新窗口，尝试通知原窗口并关闭
+          try {
+            if (window.opener && !window.opener.closed) {
+              // 通知原窗口支付成功
+              window.opener.postMessage({
+                type: 'PAYMENT_SUCCESS',
+                diamonds: diamonds,
+                totalDiamonds: newDiamonds,
+                sessionId: sessionId
+              }, '*');
+              // 延迟关闭窗口，给用户看到成功消息的时间
+              setTimeout(() => {
+                window.close();
+              }, 2000);
             }
-          }, 100);
+          } catch (e) {
+            console.log('Cannot communicate with opener window:', e);
+          }
+          
+          alert(`Payment successful! Added ${diamonds} diamonds to your account. Total: ${newDiamonds}`);
         })
         .catch(error => {
           console.error('❌ Payment verification failed:', error);
@@ -814,8 +840,50 @@ const App: React.FC = () => {
       // 用户取消了支付
       console.log('Payment cancelled by user');
       window.history.replaceState({}, '', window.location.pathname);
+      // 尝试关闭窗口
+      try {
+        if (window.opener && !window.opener.closed) {
+          setTimeout(() => window.close(), 1000);
+        }
+      } catch (e) {
+        // 忽略错误
+      }
     }
   }, []); // 只在组件挂载时执行一次
+
+  // 监听来自支付窗口的消息
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // 验证消息来源（可选，但建议在生产环境中验证）
+      if (event.data && event.data.type === 'PAYMENT_SUCCESS') {
+        console.log('✅ Received payment success message from payment window:', event.data);
+        const { diamonds, totalDiamonds } = event.data;
+        
+        // 从 localStorage 读取最新数据
+        const saved = localStorage.getItem('timeTraderProfile');
+        if (saved) {
+          try {
+            const currentProfile = JSON.parse(saved);
+            const updated = {
+              ...currentProfile,
+              timeDiamonds: totalDiamonds || (currentProfile.timeDiamonds + diamonds)
+            };
+            localStorage.setItem('timeTraderProfile', JSON.stringify(updated));
+            setProfile(updated);
+            console.log('✅ Profile updated from payment window message:', updated);
+            alert(`Payment successful! Added ${diamonds} diamonds to your account. Total: ${updated.timeDiamonds}`);
+          } catch (e) {
+            console.error('Failed to update profile from message:', e);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
 
   const handlePurchase = (type: 'equipment' | 'consumable', itemType: EquipmentType | ConsumableType) => {
     if (type === 'equipment') {
