@@ -23,13 +23,13 @@ const LevelBriefing: React.FC<Props> = ({ scenario, currentCash, targetCash, tim
       {/* Fixed Back Button */}
         <button
         onClick={onBack}
-        className="sticky top-4 left-4 z-50 px-4 py-2 md:px-6 md:py-3 border border-slate-700 bg-slate-900/95 backdrop-blur-md text-slate-400 hover:bg-slate-800 hover:text-white transition-all orbitron text-xs md:text-sm uppercase tracking-widest shadow-lg"
+        className="sticky top-2 md:top-4 left-2 md:left-4 z-50 px-3 py-1.5 md:px-6 md:py-3 border border-slate-700 bg-slate-900/95 backdrop-blur-md text-slate-400 hover:bg-slate-800 hover:text-white transition-all orbitron text-xs md:text-sm uppercase tracking-widest shadow-lg"
       >
         {i18n.t('common.back')}
       </button>
       
-      <div className="min-h-full flex items-center justify-center py-8 md:py-12 px-2 md:px-4">
-        <div className="max-w-4xl w-full p-4 md:p-12 border-2 border-cyan-500 bg-slate-900 shadow-2xl relative my-auto">
+      <div className="min-h-full flex items-start md:items-center justify-center py-4 md:py-12 px-2 md:px-4">
+        <div className="max-w-4xl w-full p-3 md:p-12 border-2 border-cyan-500 bg-slate-900 shadow-2xl relative my-4 md:my-auto">
         {/* Decorative Background */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5 pointer-events-none"></div>
         

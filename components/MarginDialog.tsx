@@ -37,8 +37,8 @@ const MarginDialog: React.FC<Props> = ({ currentCash, currentBalance, onConfirm,
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border-2 border-cyan-500 p-4 md:p-8 max-w-md w-full mx-2 md:mx-4 shadow-2xl my-auto relative">
+    <div className="fixed inset-0 z-[9999] flex items-start md:items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-4 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="bg-slate-900 border-2 border-cyan-500 p-4 md:p-8 max-w-md w-full mx-2 md:mx-4 shadow-2xl my-4 md:my-auto relative">
         <h3 className="orbitron text-lg md:text-2xl font-black text-white mb-4 md:mb-6 uppercase tracking-wider">
           {isMargin ? i18n.t('marginDialog.addMargin') : i18n.t('marginDialog.cutLoss')}
         </h3>

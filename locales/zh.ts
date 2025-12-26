@@ -67,6 +67,10 @@ export const zh = {
     balance: "余额",
     target: "目标",
     achieved: "✓ 达成",
+    keyMechanics: "关键玩法",
+    marginAddDesc: "投入现金增加保证金，降低爆仓风险",
+    cutLossDesc: "减少仓位大小，降低杠杆影响",
+    phaseShiftDesc: "在多头/空头间切换，根据时机支付手续费",
   },
   
   // Quantum Grapple

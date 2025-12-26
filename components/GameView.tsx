@@ -154,9 +154,9 @@ const GameView: React.FC<Props> = ({
       </div>
 
       {/* Left UI: Live K-Line */}
-      <div className="absolute left-2 md:left-8 top-20 md:top-32 bottom-20 md:bottom-32 w-64 md:w-72 bg-slate-900/80 backdrop-blur-xl border border-slate-800 z-10 flex flex-col p-3 md:p-6 shadow-2xl">
-        <div className="flex justify-between items-center mb-4">
-            <div className="orbitron text-[10px] text-cyan-500 font-black tracking-widest uppercase">Live Pulse</div>
+      <div className="absolute left-1 md:left-8 top-16 md:top-32 bottom-16 md:bottom-32 w-32 md:w-72 bg-slate-900/80 backdrop-blur-xl border border-slate-800 z-10 flex flex-col p-1.5 md:p-6 shadow-2xl">
+        <div className="flex justify-between items-center mb-2 md:mb-4">
+            <div className="orbitron text-[8px] md:text-[10px] text-cyan-500 font-black tracking-widest uppercase">Live Pulse</div>
             <div className="flex space-x-1">
                 <div className="w-1 h-3 bg-cyan-500 animate-[pulse_1s_infinite]"></div>
                 <div className="w-1 h-3 bg-cyan-500 animate-[pulse_1.2s_infinite]"></div>
@@ -272,10 +272,10 @@ const GameView: React.FC<Props> = ({
       </div>
 
       {/* Right UI: Terminal & Interaction */}
-      <div className="absolute right-2 md:right-8 top-20 md:top-32 bottom-20 md:bottom-32 w-64 md:w-80 flex flex-col space-y-3 md:space-y-6 z-10">
+      <div className="absolute right-1 md:right-8 top-16 md:top-32 bottom-16 md:bottom-32 w-32 md:w-80 flex flex-col space-y-1.5 md:space-y-6 z-10 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
         
         {/* AI System Terminal */}
-        <div className="flex-1 bg-slate-900/80 backdrop-blur-xl border border-slate-800 p-3 md:p-6 flex flex-col shadow-2xl relative overflow-hidden">
+        <div className="flex-1 bg-slate-900/80 backdrop-blur-xl border border-slate-800 p-1.5 md:p-6 flex flex-col shadow-2xl relative overflow-hidden min-h-0">
           <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div>
           <div className="flex justify-between items-start mb-3 md:mb-6">
             <div className="orbitron text-[8px] md:text-[10px] text-slate-500 uppercase font-black">AI_CORE_FEED</div>
@@ -293,7 +293,7 @@ const GameView: React.FC<Props> = ({
         </div>
 
         {/* Action HUD */}
-        <div className="bg-slate-950 border border-slate-800 p-3 md:p-6 space-y-2 md:space-y-4 shadow-2xl">
+        <div className="bg-slate-950 border border-slate-800 p-1.5 md:p-6 space-y-1.5 md:space-y-4 shadow-2xl overflow-y-auto overscroll-contain max-h-[40vh] md:max-h-none" style={{ WebkitOverflowScrolling: 'touch' }}>
           {/* 提前结算按钮（达到目标时显示） */}
           {canEarlyExit && (
             <button 
@@ -335,37 +335,59 @@ const GameView: React.FC<Props> = ({
             {i18n.t('gameView.jumpOut')}
           </button>
 
-          <div className="grid grid-cols-3 gap-2 md:gap-3">
+          <div className="grid grid-cols-3 gap-1 md:gap-3">
             <button 
                 onClick={() => {
                   soundManager.playClick();
                   onAddMargin();
                 }}
-                className="py-2.5 md:py-4 border border-emerald-800 text-emerald-500 hover:bg-emerald-950 hover:text-white orbitron text-[9px] md:text-[10px] font-black uppercase transition-all flex flex-col items-center justify-center space-y-1"
+                className="py-1.5 md:py-4 border border-emerald-800 text-emerald-500 hover:bg-emerald-950 hover:text-white orbitron text-[7px] md:text-[10px] font-black uppercase transition-all flex flex-col items-center justify-center space-y-0.5 md:space-y-1"
             >
-                <span>{i18n.t('gameView.marginAdd')}</span>
-                <span className="text-[7px] md:text-[8px] opacity-50">MARGIN+</span>
+                <span className="truncate w-full text-center">{i18n.t('gameView.marginAdd')}</span>
+                <span className="text-[6px] md:text-[8px] opacity-50">MARGIN+</span>
             </button>
             <button 
                 onClick={() => {
                   soundManager.playClick();
                   onUseHammer();
                 }}
-                className="py-2.5 md:py-4 border border-rose-800 text-rose-500 hover:bg-rose-950 hover:text-white orbitron text-[9px] md:text-[10px] font-black uppercase transition-all flex flex-col items-center justify-center space-y-1"
+                className="py-1.5 md:py-4 border border-rose-800 text-rose-500 hover:bg-rose-950 hover:text-white orbitron text-[7px] md:text-[10px] font-black uppercase transition-all flex flex-col items-center justify-center space-y-0.5 md:space-y-1"
             >
-                <span>{i18n.t('gameView.cutLoss')}</span>
-                <span className="text-[7px] md:text-[8px] opacity-50">CUT</span>
+                <span className="truncate w-full text-center">{i18n.t('gameView.cutLoss')}</span>
+                <span className="text-[6px] md:text-[8px] opacity-50">CUT</span>
             </button>
             <button 
                 onClick={() => {
                   soundManager.playClick();
                   onPhaseShift();
                 }}
-                className="py-2.5 md:py-4 border border-cyan-800 text-cyan-500 hover:bg-cyan-950 hover:text-white orbitron text-[9px] md:text-[10px] font-black uppercase transition-all flex flex-col items-center justify-center space-y-1"
+                className="py-1.5 md:py-4 border border-cyan-800 text-cyan-500 hover:bg-cyan-950 hover:text-white orbitron text-[7px] md:text-[10px] font-black uppercase transition-all flex flex-col items-center justify-center space-y-0.5 md:space-y-1"
             >
-                <span>{i18n.t('gameView.phaseShift')}</span>
-                <span className="text-[7px] md:text-[8px] opacity-50">SHIFT</span>
+                <span className="truncate w-full text-center">{i18n.t('gameView.phaseShift')}</span>
+                <span className="text-[6px] md:text-[8px] opacity-50">SHIFT</span>
             </button>
+          </div>
+
+          {/* 关键玩法说明 */}
+          <div className="mt-2 md:mt-4 p-1.5 md:p-3 bg-slate-900/80 border border-cyan-500/30 rounded">
+            <div className="text-[7px] md:text-[9px] text-cyan-400 orbitron uppercase tracking-widest mb-1 md:mb-2 flex items-center space-x-1">
+              <span>💡</span>
+              <span>{i18n.t('gameView.keyMechanics')}</span>
+            </div>
+            <div className="space-y-0.5 md:space-y-1 text-[6px] md:text-[8px] text-slate-400 leading-relaxed">
+              <div className="flex items-start space-x-1">
+                <span className="text-emerald-400 font-bold flex-shrink-0">•</span>
+                <span className="flex-1 min-w-0"><span className="text-emerald-400 font-bold">{i18n.t('gameView.marginAdd')}:</span> {i18n.t('gameView.marginAddDesc')}</span>
+              </div>
+              <div className="flex items-start space-x-1">
+                <span className="text-rose-400 font-bold flex-shrink-0">•</span>
+                <span className="flex-1 min-w-0"><span className="text-rose-400 font-bold">{i18n.t('gameView.cutLoss')}:</span> {i18n.t('gameView.cutLossDesc')}</span>
+              </div>
+              <div className="flex items-start space-x-1">
+                <span className="text-cyan-400 font-bold flex-shrink-0">•</span>
+                <span className="flex-1 min-w-0"><span className="text-cyan-400 font-bold">{i18n.t('gameView.phaseShift')}:</span> {i18n.t('gameView.phaseShiftDesc')}</span>
+              </div>
+            </div>
           </div>
 
           {/* 临时道具提示 */}
@@ -437,16 +459,16 @@ const GameView: React.FC<Props> = ({
       </div>
 
       {/* Top Header Navigation */}
-      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-slate-900 via-slate-900/80 to-transparent flex flex-col px-16 justify-center z-20">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex flex-col">
-              <div className="orbitron text-slate-600 text-[9px] font-black tracking-[0.5em] mb-1 uppercase">Mission Protocol</div>
-              <div className="orbitron text-white text-lg font-black tracking-tight uppercase italic">{scenario.name}</div>
+      <div className="absolute top-0 left-0 right-0 h-20 md:h-32 bg-gradient-to-b from-slate-900 via-slate-900/80 to-transparent flex flex-col px-2 md:px-16 justify-center z-20">
+        <div className="flex items-center justify-between mb-1 md:mb-2">
+          <div className="flex flex-col flex-1 min-w-0">
+              <div className="orbitron text-slate-600 text-[7px] md:text-[9px] font-black tracking-[0.3em] md:tracking-[0.5em] mb-0.5 md:mb-1 uppercase">Mission Protocol</div>
+              <div className="orbitron text-white text-xs md:text-lg font-black tracking-tight uppercase italic truncate">{scenario.name}</div>
           </div>
 
-          <div className="flex flex-col items-end">
-              <div className="orbitron text-slate-600 text-[9px] font-black tracking-[0.5em] mb-1 uppercase">Local Chrono</div>
-              <div className="orbitron text-white text-lg font-black tracking-tighter uppercase tabular-nums">
+          <div className="flex flex-col items-end flex-shrink-0 ml-2">
+              <div className="orbitron text-slate-600 text-[7px] md:text-[9px] font-black tracking-[0.3em] md:tracking-[0.5em] mb-0.5 md:mb-1 uppercase">Local Chrono</div>
+              <div className="orbitron text-white text-xs md:text-lg font-black tracking-tighter uppercase tabular-nums">
                   {Math.floor(currentIndex / 60).toString().padStart(2, '0')}:{ (currentIndex % 60).toString().padStart(2, '0') }
               </div>
           </div>
@@ -454,8 +476,8 @@ const GameView: React.FC<Props> = ({
 
         {/* Target Progress Bar */}
         <div className="flex-1 mx-0 relative mb-1 md:mb-2">
-           <div className="flex justify-between text-[8px] md:text-[10px] orbitron text-slate-400 mb-0.5 md:mb-1 font-black">
-               <span className="truncate mr-1">{i18n.t('gameView.balance')}: ${currentBalance.toLocaleString()}</span>
+           <div className="flex flex-col md:flex-row justify-between gap-1 md:gap-0 text-[7px] md:text-[10px] orbitron text-slate-400 mb-0.5 md:mb-1 font-black">
+               <span className="truncate">{i18n.t('gameView.balance')}: ${currentBalance.toLocaleString()}</span>
                <span className={`truncate ${canEarlyExit ? 'text-emerald-400' : ''}`}>
                  {canEarlyExit ? i18n.t('gameView.achieved') : `${i18n.t('gameView.target')}: $${targetCash.toLocaleString()}`}
                </span>

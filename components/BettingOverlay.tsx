@@ -47,8 +47,8 @@ const BettingOverlay: React.FC<Props> = ({ onStart, scenarios, leverageOptions, 
   }, [initialScenario]);
 
   return (
-    <div className="z-30 w-full max-w-4xl p-8 bg-slate-900/90 border-t-4 border-cyan-500 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom duration-500">
-      <div className="flex justify-between items-center mb-8">
+    <div className="z-30 w-full max-w-4xl p-4 md:p-8 bg-slate-900/90 border-t-4 border-cyan-500 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom duration-500 overflow-y-auto overscroll-contain max-h-[100vh]" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="flex justify-between items-center mb-4 md:mb-8">
         <button
           onClick={onBack}
           className="px-6 py-3 border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition-all orbitron text-sm uppercase tracking-widest"

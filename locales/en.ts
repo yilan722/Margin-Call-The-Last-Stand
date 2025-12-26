@@ -67,6 +67,10 @@ export const en = {
     balance: "Balance",
     target: "Target",
     achieved: "✓ Achieved",
+    keyMechanics: "Key Mechanics",
+    marginAddDesc: "Add cash to increase margin, reduce liquidation risk",
+    cutLossDesc: "Reduce position size to decrease leverage impact",
+    phaseShiftDesc: "Switch between LONG/SHORT, pay fee based on timing",
   },
   
   // Quantum Grapple

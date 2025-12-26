@@ -84,16 +84,16 @@ const ResultOverlay: React.FC<Props> = ({
   const canRevive = updatedTimeDiamonds >= reviveCost && (isLiquidated || isFailed);
 
   return (
-    <div className="z-40 inset-0 absolute flex items-center justify-center bg-slate-950/90 backdrop-blur-xl animate-in zoom-in duration-300 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className="z-40 inset-0 fixed flex items-start md:items-center justify-center bg-slate-950/90 backdrop-blur-xl animate-in zoom-in duration-300 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* Back Button - Sticky for better visibility */}
       <button
         onClick={onBack}
-        className="sticky top-6 left-6 px-4 py-2 md:px-6 md:py-3 border-2 border-cyan-500/50 bg-slate-900/95 backdrop-blur-md text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-400 hover:text-white transition-all orbitron text-xs md:text-sm font-black uppercase tracking-widest z-50 shadow-[0_0_20px_rgba(6,182,212,0.3)] mb-4"
+        className="sticky top-2 md:top-6 left-2 md:left-6 px-3 py-1.5 md:px-6 md:py-3 border-2 border-cyan-500/50 bg-slate-900/95 backdrop-blur-md text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-400 hover:text-white transition-all orbitron text-xs md:text-sm font-black uppercase tracking-widest z-50 shadow-[0_0_20px_rgba(6,182,212,0.3)] mb-2 md:mb-4"
       >
-        返回
+        {i18n.t('common.back')}
       </button>
       
-      <div className="max-w-2xl w-full p-6 md:p-12 border border-slate-800 bg-slate-900 shadow-2xl relative my-8 md:my-12">
+      <div className="max-w-2xl w-full p-4 md:p-12 border border-slate-800 bg-slate-900 shadow-2xl relative my-4 md:my-12 mx-2 md:mx-4">
         
         {/* Decorative Background Icon */}
         <div className="absolute top-4 right-4 text-8xl opacity-10 pointer-events-none select-none">
@@ -339,7 +339,7 @@ const ResultOverlay: React.FC<Props> = ({
         </div>
 
         {/* 操作按钮 - 固定在底部，始终可见 */}
-        <div className="sticky bottom-0 mt-8 md:mt-12 pt-6 pb-4 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 space-y-3 md:space-y-4">
+        <div className="sticky bottom-0 mt-6 md:mt-12 pt-4 md:pt-6 pb-2 md:pb-4 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 space-y-2 md:space-y-4 -mx-4 md:-mx-12 px-4 md:px-12 z-50 relative">
           <div className="text-xs text-slate-500 text-center mb-2 orbitron uppercase tracking-widest">{i18n.t('result.nextStep')}</div>
           {isLiquidated ? (
             <>
@@ -368,8 +368,35 @@ const ResultOverlay: React.FC<Props> = ({
               {/* 业绩不达标时的选项 */}
               {canRevive ? (
                 <button 
-                  onClick={onRevive}
-                  className="w-full py-3 md:py-4 bg-amber-600 hover:bg-amber-500 text-white orbitron font-black text-sm md:text-base tracking-widest transition-all shadow-[0_0_30px_rgba(245,158,11,0.3)]"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Bribe HR button clicked', { onRevive, canRevive, reviveCost, type: typeof onRevive });
+                    if (onRevive && typeof onRevive === 'function') {
+                      console.log('Calling onRevive...');
+                      try {
+                        onRevive();
+                        console.log('onRevive called successfully');
+                      } catch (error) {
+                        console.error('Error calling onRevive:', error);
+                      }
+                    } else {
+                      console.error('onRevive is not a function:', onRevive);
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Bribe HR button touched', { onRevive, canRevive, reviveCost });
+                    if (onRevive && typeof onRevive === 'function') {
+                      onRevive();
+                    }
+                  }}
+                  className="w-full py-3 md:py-4 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white orbitron font-black text-sm md:text-base tracking-widest transition-all shadow-[0_0_30px_rgba(245,158,11,0.3)] active:scale-95 cursor-pointer z-50 relative"
+                  style={{ touchAction: 'manipulation' }}
                 >
                   {i18n.t('result.bribeHR', { cost: reviveCost })}
                 </button>

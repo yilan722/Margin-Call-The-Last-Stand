@@ -636,7 +636,11 @@ const App: React.FC = () => {
   };
 
   const handleRevive = () => {
-    if (!player) return;
+    if (!player) {
+      console.error('handleRevive: player is null');
+      return;
+    }
+    console.log('handleRevive called', { player, levelStartingCash, currentLevelTarget });
     
     // 判断是爆仓还是业绩未达标
     const finalPnl = player.isDead ? -100 : (player.exitPnl || player.currentPnl);

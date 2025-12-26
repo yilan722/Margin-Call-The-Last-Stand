@@ -51,14 +51,14 @@ const IntermissionShop: React.FC<Props> = ({
   };
 
   return (
-    <div className="z-30 w-full h-full bg-slate-950 overflow-y-auto">
+    <div className="z-30 w-full h-full bg-slate-950 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-gradient-to-b from-slate-900 to-transparent pb-8 pt-8 px-16 border-b border-slate-800">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="orbitron text-5xl font-black text-white tracking-tighter">{i18n.t('intermissionShop.title')}</h1>
+      <div className="sticky top-0 z-10 bg-gradient-to-b from-slate-900 to-transparent pb-4 md:pb-8 pt-4 md:pt-8 px-4 md:px-16 border-b border-slate-800">
+        <div className="flex justify-between items-center mb-4 md:mb-6">
+          <h1 className="orbitron text-2xl md:text-5xl font-black text-white tracking-tighter">{i18n.t('intermissionShop.title')}</h1>
           <button
             onClick={onBack}
-            className="px-6 py-3 border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition-all orbitron text-sm uppercase tracking-widest"
+            className="px-3 py-1.5 md:px-6 md:py-3 border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition-all orbitron text-xs md:text-sm uppercase tracking-widest"
           >
             {i18n.t('common.back')}
           </button>
@@ -83,7 +83,7 @@ const IntermissionShop: React.FC<Props> = ({
       </div>
 
       {/* Content */}
-      <div className="px-16 py-12">
+      <div className="px-4 md:px-16 py-6 md:py-12">
         <div className="mb-8">
           <h2 className="orbitron text-2xl font-black text-white mb-4">{i18n.t('intermissionShop.itemsTitle')}</h2>
           <p className="text-slate-400 text-sm">{i18n.t('intermissionShop.itemsDescription')}</p>

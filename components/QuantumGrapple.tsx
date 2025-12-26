@@ -126,8 +126,8 @@ const QuantumGrapple: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex items-center justify-center">
-      <div className="bg-slate-900 border-2 border-cyan-500/50 rounded-lg p-6 md:p-8 max-w-md w-full mx-4">
+    <div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex items-start md:items-center justify-center overflow-y-auto overscroll-contain p-2 md:p-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="bg-slate-900 border-2 border-cyan-500/50 rounded-lg p-4 md:p-8 max-w-md w-full mx-2 md:mx-4 my-4 md:my-auto">
         {/* 标题 */}
         <div className="text-center mb-6">
           <h2 className="text-3xl md:text-4xl font-black orbitron text-cyan-400 mb-2">
