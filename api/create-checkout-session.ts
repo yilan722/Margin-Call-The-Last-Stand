@@ -78,7 +78,7 @@ export default async function handler(
     }
 
     const stripe = getStripe();
-    const { packageId, userId } = req.body;
+    const { packageId, userId, returnUrl } = req.body;
 
     if (!packageId || !DIAMOND_PACKAGES[packageId]) {
       return res.status(400).json({ error: 'Invalid package ID' });
@@ -87,6 +87,9 @@ export default async function handler(
     const pkg = DIAMOND_PACKAGES[packageId];
     const totalDiamonds = pkg.diamonds + (pkg.bonus || 0);
 
+    // 确定回调 URL：优先使用前端传入的 returnUrl（Itch.io），否则使用 origin（Vercel）
+    const baseUrl = returnUrl || req.headers.origin || 'https://margin-call-the-last-stand.vercel.app';
+    
     // 创建 Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -104,8 +107,8 @@ export default async function handler(
         },
       ],
       mode: 'payment',
-      success_url: `${req.headers.origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}&package_id=${packageId}`,
-      cancel_url: `${req.headers.origin}/?payment=cancelled`,
+      success_url: `${baseUrl}?payment=success&session_id={CHECKOUT_SESSION_ID}&package_id=${packageId}`,
+      cancel_url: `${baseUrl}?payment=cancelled`,
       metadata: {
         packageId,
         userId: userId || 'anonymous',

@@ -91,6 +91,11 @@ export async function createCheckoutSession(packageId: string): Promise<string> 
 
   // 使用真实 API（生产环境或开发环境启用真实支付）
   try {
+    // 获取当前页面的完整 URL（用于回调）
+    // 如果在 iframe 中，使用顶层窗口的 URL
+    const currentWindow = window.top || window;
+    const returnUrl = currentWindow.location.origin + currentWindow.location.pathname;
+    
     const response = await fetch(`${getApiBaseUrl()}/api/create-checkout-session`, {
       method: 'POST',
       headers: {
@@ -99,6 +104,7 @@ export async function createCheckoutSession(packageId: string): Promise<string> 
       body: JSON.stringify({
         packageId,
         userId: getUserId(),
+        returnUrl: returnUrl, // 传递当前页面 URL，用于支付成功后的回调
       }),
     });
 
@@ -188,8 +194,14 @@ export async function initiateStripeCheckout(packageId: string): Promise<void> {
     const sessionUrl = await createCheckoutSession(packageId);
     
     // 如果是真实的 Stripe Session URL，重定向到支付页面
+    // 使用 window.top 确保在顶层窗口重定向（避免 iframe 问题）
     if (sessionUrl && sessionUrl.startsWith('https://checkout.stripe.com')) {
-      window.location.href = sessionUrl;
+      // 检查是否在 iframe 中，如果是则使用顶层窗口重定向
+      if (window.top && window.top !== window.self) {
+        window.top.location.href = sessionUrl;
+      } else {
+        window.location.href = sessionUrl;
+      }
     } else if (import.meta.env.DEV && !shouldUseRealPayment()) {
       // 开发模式（模拟支付）：不重定向
       console.log('Development mode: Payment will be simulated in the UI');
