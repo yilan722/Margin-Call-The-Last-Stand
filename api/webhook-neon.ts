@@ -53,68 +53,82 @@ export default async function handler(
     return res.status(400).json({ error: 'Missing stripe-signature header' });
   }
 
-  // 获取原始请求体（Stripe webhook 需要原始 body 来验证签名）
-  // 在 Vercel 中，对于 webhook，req.body 应该是字符串或 Buffer
-  // 但如果 Content-Type 是 application/json，Vercel 可能会自动解析
-  let rawBody: string | Buffer;
+  // 在 Vercel 中获取原始请求体
+  // Stripe webhook 需要原始 body 字符串来验证签名
+  let rawBody: string;
   
-  // 方法 1: 检查是否有 rawBody 属性
-  if ((req as any).rawBody) {
-    rawBody = (req as any).rawBody;
-    console.log('✅ Using rawBody property');
-  } 
-  // 方法 2: 如果 body 是字符串，直接使用
-  else if (typeof req.body === 'string') {
-    rawBody = req.body;
-    console.log('✅ Using body as string, length:', rawBody.length);
-  } 
-  // 方法 3: 如果 body 是 Buffer，直接使用
-  else if (Buffer.isBuffer(req.body)) {
-    rawBody = req.body;
-    console.log('✅ Using body as Buffer, length:', rawBody.length);
-  } 
-  // 方法 4: 如果 body 是对象，说明已经被解析了
-  // 在这种情况下，我们需要从请求中读取原始数据
-  // 但 Vercel 可能已经解析了它，所以我们需要使用不同的方法
-  else {
-    console.error('❌ Body has been parsed as object/JSON');
-    console.error('Body type:', typeof req.body);
-    console.error('Content-Type:', req.headers['content-type']);
-    
-    // 尝试从 req 中获取原始 body（如果可能）
-    // 在某些情况下，Vercel 会在 req.body 中保留原始字符串
-    // 但通常如果 Content-Type 是 application/json，它会被解析
-    
-    // 返回详细的错误信息，帮助调试
-    return res.status(400).json({ 
-      error: 'Body parsing issue',
-      message: 'Request body was parsed as JSON, but Stripe webhook requires raw body for signature verification.',
-      details: {
-        bodyType: typeof req.body,
-        contentType: req.headers['content-type'],
-        hasRawBody: !!(req as any).rawBody,
-        suggestion: 'The webhook endpoint may need special configuration to preserve the raw body.'
+  try {
+    // 方法 1: 如果 body 是字符串，直接使用（最常见的情况）
+    if (typeof req.body === 'string') {
+      rawBody = req.body;
+      console.log('✅ Using body as string, length:', rawBody.length);
+    } 
+    // 方法 2: 如果 body 是 Buffer，转换为字符串
+    else if (Buffer.isBuffer(req.body)) {
+      rawBody = req.body.toString('utf8');
+      console.log('✅ Using body as Buffer, converted to string, length:', rawBody.length);
+    }
+    // 方法 3: 检查是否有 rawBody 属性
+    else if ((req as any).rawBody) {
+      if (typeof (req as any).rawBody === 'string') {
+        rawBody = (req as any).rawBody;
+      } else if (Buffer.isBuffer((req as any).rawBody)) {
+        rawBody = (req as any).rawBody.toString('utf8');
+      } else {
+        throw new Error('rawBody is not a string or Buffer');
       }
+      console.log('✅ Using rawBody property, length:', rawBody.length);
+    }
+    // 方法 4: 如果 body 是对象，说明已经被解析了
+    // 这种情况下，我们需要从请求流中读取原始数据
+    else if (typeof req.body === 'object' && req.body !== null) {
+      console.error('❌ Body was parsed as object. This will cause signature verification to fail.');
+      console.error('Body type:', typeof req.body);
+      console.error('Content-Type:', req.headers['content-type']);
+      
+      // 尝试从 req 中读取原始流（如果可能）
+      // 在 Vercel 中，如果 body 被解析了，我们无法恢复原始字符串
+      // 所以我们需要返回错误
+      return res.status(400).json({ 
+        error: 'Body parsing issue',
+        message: 'Request body was parsed as JSON, but Stripe webhook requires raw body for signature verification.',
+        details: {
+          bodyType: typeof req.body,
+          contentType: req.headers['content-type'],
+          suggestion: 'The webhook endpoint needs to receive the raw body. Check Vercel configuration.'
+        }
+      });
+    } else {
+      throw new Error(`Unknown body type: ${typeof req.body}`);
+    }
+  } catch (error: any) {
+    console.error('❌ Error processing request body:', error);
+    return res.status(400).json({ 
+      error: 'Failed to process request body',
+      message: error.message
     });
   }
 
   let event: Stripe.Event;
 
   try {
-    // 验证 Webhook 签名（需要原始 body）
+    // 验证 Webhook 签名（需要原始 body 字符串）
     event = stripe.webhooks.constructEvent(
-      rawBody,
+      rawBody as string,
       sig,
       webhookSecret
     );
+    console.log('✅ Webhook signature verified successfully');
   } catch (err: any) {
     console.error('❌ Webhook signature verification failed:', err.message);
-    console.error('Error details:', {
+    console.error('Debug info:', {
       bodyType: typeof rawBody,
       bodyLength: rawBody?.length || 0,
+      bodyPreview: typeof rawBody === 'string' ? rawBody.substring(0, 100) : 'N/A',
       hasSignature: !!sig,
+      signatureLength: sig?.length || 0,
       hasSecret: !!webhookSecret,
-      signaturePrefix: sig?.substring(0, 20) || 'none'
+      secretLength: webhookSecret?.length || 0
     });
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
