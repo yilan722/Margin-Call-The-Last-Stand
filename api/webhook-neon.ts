@@ -53,26 +53,32 @@ export default async function handler(
     return res.status(400).json({ error: 'Missing stripe-signature header' });
   }
 
-  // 在 Vercel 中获取原始请求体
-  // 关键：Stripe webhook 需要原始 body 字符串来验证签名
-  // 在 Vercel 中，req.body 可能是字符串、Buffer 或已解析的对象
+  // 关键：在 Vercel Serverless Functions 中获取原始 body
+  // Stripe webhook 需要原始 body 字符串来验证签名
+  // 如果 body 被解析为对象，签名验证会失败
   let rawBody: string;
   
-  // 检查 body 的实际类型
   const bodyType = typeof req.body;
   const contentType = req.headers['content-type'] || '';
   
   console.log('📋 Request info:', {
     bodyType,
     contentType,
-    hasRawBody: !!(req as any).rawBody,
-    bodyIsString: typeof req.body === 'string',
-    bodyIsBuffer: Buffer.isBuffer(req.body),
-    bodyIsObject: typeof req.body === 'object' && req.body !== null
+    hasRawBody: !!(req as any).rawBody
   });
   
-  // 方法 1: 检查是否有 rawBody 属性（Vercel 在某些情况下会提供）
-  if ((req as any).rawBody) {
+  // 方法 1: 如果 body 是字符串，直接使用（这是最理想的情况）
+  if (typeof req.body === 'string') {
+    rawBody = req.body;
+    console.log('✅ Using body as string (raw), length:', rawBody.length);
+  }
+  // 方法 2: 如果 body 是 Buffer，转换为字符串
+  else if (Buffer.isBuffer(req.body)) {
+    rawBody = req.body.toString('utf8');
+    console.log('✅ Using body as Buffer, converted to string, length:', rawBody.length);
+  }
+  // 方法 3: 检查是否有 rawBody 属性
+  else if ((req as any).rawBody) {
     if (typeof (req as any).rawBody === 'string') {
       rawBody = (req as any).rawBody;
       console.log('✅ Using rawBody property (string), length:', rawBody.length);
@@ -84,34 +90,23 @@ export default async function handler(
       return res.status(400).json({ error: 'Invalid rawBody type' });
     }
   }
-  // 方法 2: 如果 body 是字符串，直接使用
-  else if (typeof req.body === 'string') {
-    rawBody = req.body;
-    console.log('✅ Using body as string, length:', rawBody.length);
-  }
-  // 方法 3: 如果 body 是 Buffer，转换为字符串
-  else if (Buffer.isBuffer(req.body)) {
-    rawBody = req.body.toString('utf8');
-    console.log('✅ Using body as Buffer, converted to string, length:', rawBody.length);
-  }
-  // 方法 4: 如果 body 是对象，说明已经被解析了
-  // 在 Vercel 中，如果 Content-Type 是 application/json，body 会被自动解析
+  // 方法 4: 如果 body 是对象，说明 Vercel 自动解析了 JSON
   // 这种情况下，我们无法恢复原始字符串，签名验证会失败
   else if (typeof req.body === 'object' && req.body !== null) {
-    console.error('❌ CRITICAL: Body was parsed as object/JSON');
-    console.error('This means Vercel automatically parsed the JSON body.');
-    console.error('We cannot recover the original string, so signature verification will fail.');
-    console.error('Details:', {
-      bodyType,
-      contentType,
-      bodyKeys: Object.keys(req.body).slice(0, 10), // 只显示前10个键
-      bodyStringified: JSON.stringify(req.body).substring(0, 200) // 只显示前200个字符
-    });
+    console.error('❌ CRITICAL ERROR: Body was parsed as object/JSON');
+    console.error('Vercel automatically parsed the JSON body.');
+    console.error('This breaks Stripe signature verification because we need the raw body.');
+    console.error('Solution: We need to configure Vercel to NOT parse the body.');
     
-    // 尝试使用 JSON.stringify 作为最后手段（虽然通常不会工作）
-    // 但这会导致签名验证失败，因为 JSON.stringify 会改变格式
-    rawBody = JSON.stringify(req.body);
-    console.warn('⚠️ Attempting to use stringified body (signature verification will likely fail)');
+    return res.status(400).json({ 
+      error: 'Body parsing issue',
+      message: 'Request body was parsed as JSON, but Stripe webhook requires raw body for signature verification.',
+      details: {
+        bodyType,
+        contentType,
+        suggestion: 'In Vercel Serverless Functions, the body is automatically parsed when Content-Type is application/json. We need to prevent this.'
+      }
+    });
   } else {
     console.error('❌ Unknown body type:', bodyType);
     return res.status(400).json({ 
