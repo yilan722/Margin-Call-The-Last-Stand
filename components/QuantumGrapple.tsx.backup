@@ -1,0 +1,388 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Side } from '../types';
+import { soundManager } from '../utils/soundManager';
+
+interface Block {
+  id: number;
+  type: 'GOLD' | 'JUNK';
+  y: number; // 垂直位置 (vh单位)
+  height: number; // 物体高度 (vh单位)
+}
+
+interface Props {
+  isActive: boolean;
+  currentSide: Side;
+  onSwitch: (newSide: Side, fee: number, result: 'PERFECT' | 'NORMAL' | 'FAIL') => void;
+  onCancel: () => void;
+  volatility: number;
+  baseFee: number;
+}
+
+const QuantumGrapple: React.FC<Props> = ({
+  isActive,
+  currentSide,
+  onSwitch,
+  onCancel,
+  volatility,
+  baseFee
+}) => {
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [feedback, setFeedback] = useState<{ type: 'PERFECT' | 'NORMAL' | 'FAIL'; show: boolean } | null>(null);
+  const [nextBlockId, setNextBlockId] = useState(0);
+  const animationRef = useRef<number>();
+  const lastSpawnTime = useRef<number>(0);
+  const lastUpdateTime = useRef<number>(0);
+
+  const PLAYER_Y = 50; // 玩家位置（屏幕中心，vh单位）
+  
+  // 计算滚动速度
+  const scrollSpeed = 40 + volatility * 30;
+
+  // 动画循环
+  useEffect(() => {
+    if (!isActive) {
+      setBlocks([]);
+      setNextBlockId(0);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      return;
+    }
+
+    // 初始化时立即生成几个方块
+    const initBlocks: Block[] = [];
+    for (let i = 0; i < 3; i++) {
+      const goldProbability = Math.max(0.15, 0.65 - volatility * 0.4);
+      const isGold = Math.random() < goldProbability;
+      initBlocks.push({
+        id: i,
+        type: isGold ? 'GOLD' : 'JUNK',
+        y: -5 - i * 15, // 从屏幕上方开始，错开位置
+        height: isGold ? 8 : 10
+      });
+    }
+    setBlocks(initBlocks);
+    setNextBlockId(3);
+    const now = performance.now();
+    lastSpawnTime.current = now;
+    lastUpdateTime.current = now;
+    
+    console.log('QuantumGrapple 初始化:', { 
+      blocks: initBlocks.length, 
+      scrollSpeed, 
+      volatility,
+      isActive 
+    });
+
+    let animationId: number;
+    const animate = (currentTime: number) => {
+      if (!isActive) {
+        return;
+      }
+
+      // 初始化 lastUpdateTime
+      if (lastUpdateTime.current === 0) {
+        lastUpdateTime.current = currentTime;
+      }
+
+      const deltaTime = Math.min((currentTime - lastUpdateTime.current) / 1000, 0.1); // 限制最大 deltaTime 防止卡顿
+      lastUpdateTime.current = currentTime;
+
+      // 移动方块
+      setBlocks(prev => {
+        if (prev.length === 0) return prev;
+        
+        const updated = prev.map(block => {
+          const newY = block.y + scrollSpeed * deltaTime;
+          return {
+            ...block,
+            y: newY
+          };
+        }).filter(block => block.y < 110);
+        
+        // 调试：每1秒打印一次
+        if (Math.floor(currentTime / 1000) !== Math.floor((currentTime - deltaTime * 1000) / 1000)) {
+          if (updated.length > 0) {
+            console.log('方块移动:', updated.map(b => ({ id: b.id, y: b.y.toFixed(1), type: b.type })));
+          }
+        }
+        
+        return updated;
+      });
+
+      // 生成新方块
+      const spawnInterval = 800 + Math.random() * 800 - (volatility * 200);
+      if (currentTime - lastSpawnTime.current > spawnInterval) {
+        const goldProbability = Math.max(0.15, 0.65 - volatility * 0.4);
+        const isGold = Math.random() < goldProbability;
+        
+        setNextBlockId(prev => {
+          const newBlock: Block = {
+            id: prev,
+            type: isGold ? 'GOLD' : 'JUNK',
+            y: -8,
+            height: isGold ? 8 : 10
+          };
+          
+          setBlocks(blocks => [...blocks, newBlock]);
+          return prev + 1;
+        });
+        lastSpawnTime.current = currentTime;
+      }
+
+      animationId = requestAnimationFrame(animate);
+      animationRef.current = animationId;
+    };
+
+    lastUpdateTime.current = 0; // 重置时间
+    animationId = requestAnimationFrame(animate);
+    animationRef.current = animationId;
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isActive, scrollSpeed, volatility]);
+
+  // 处理点击
+  const handleTap = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+
+    if (!isActive) return;
+
+    // 检测是否有方块在瞄准线上
+    const hitBlock = blocks.find(block => {
+      const blockTop = block.y;
+      const blockBottom = block.y + block.height;
+      return blockTop <= PLAYER_Y && blockBottom >= PLAYER_Y;
+    });
+
+    let result: 'PERFECT' | 'NORMAL' | 'FAIL';
+    let fee = 0;
+
+    if (hitBlock) {
+      if (hitBlock.type === 'GOLD') {
+        result = 'PERFECT';
+        fee = 0;
+        soundManager.playSuccess();
+        setFeedback({ type: 'PERFECT', show: true });
+      } else {
+        result = 'NORMAL';
+        fee = Math.floor(baseFee * 0.5);
+        soundManager.playClick();
+        setFeedback({ type: 'NORMAL', show: true });
+      }
+    } else {
+      result = 'FAIL';
+      fee = baseFee * 2;
+      soundManager.playFailure();
+      setFeedback({ type: 'FAIL', show: true });
+    }
+
+    setTimeout(() => {
+      const newSide = currentSide === Side.LONG ? Side.SHORT : Side.LONG;
+      onSwitch(newSide, fee, result);
+    }, 2000);
+  };
+
+  if (!isActive && !feedback) return null;
+
+  const newSide = currentSide === Side.LONG ? Side.SHORT : Side.LONG;
+
+  return (
+    <div 
+      className="fixed inset-0 z-[9999] bg-black"
+      onClick={(e) => handleTap(e)}
+    >
+      {/* 顶部标题 */}
+      <div className="absolute top-4 left-0 right-0 text-center z-30">
+        <h2 className="text-2xl md:text-3xl font-black orbitron text-cyan-400 mb-1">
+          光速飞爪
+        </h2>
+        <p className="text-slate-400 text-xs md:text-sm">
+          {currentSide === Side.LONG ? '多头' : '空头'} → {newSide === Side.LONG ? '多头' : '空头'}
+        </p>
+      </div>
+
+      {/* 左侧：当前方向 */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1/4 flex items-center justify-center ${currentSide === Side.LONG ? 'bg-emerald-950/30' : 'bg-rose-950/30'}`}>
+        <div className="text-center">
+          <div className="text-4xl md:text-5xl font-black orbitron mb-2">
+            {currentSide === Side.LONG ? '↑' : '↓'}
+          </div>
+          <div className="text-lg md:text-xl font-bold orbitron">
+            {currentSide === Side.LONG ? '多头' : '空头'}
+          </div>
+        </div>
+      </div>
+
+      {/* 中间：传送带区域 */}
+      <div className="absolute left-1/4 right-1/4 top-0 bottom-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-l-4 border-r-4 border-cyan-500/50 overflow-hidden">
+        {/* 方块 */}
+        {blocks.map(block => {
+          const blockCenter = block.y + block.height / 2;
+          const distanceToCenter = Math.abs(blockCenter - PLAYER_Y);
+          const isNearCenter = distanceToCenter < 4;
+          const isApproaching = blockCenter < PLAYER_Y && blockCenter > PLAYER_Y - 12;
+          const isVisible = block.y > -20 && block.y < 110;
+          
+          if (!isVisible) return null;
+          
+          return (
+            <div
+              key={block.id}
+              className={`absolute left-0 right-0 rounded-lg border-4 ${
+                block.type === 'GOLD'
+                  ? 'bg-yellow-400 border-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.8)]'
+                  : 'bg-slate-600 border-slate-700'
+              } ${isNearCenter ? 'ring-4 ring-cyan-500 animate-pulse' : ''}`}
+              style={{
+                top: `${block.y}vh`,
+                height: `${block.height}vh`,
+                minHeight: '70px',
+                maxHeight: '100px',
+                width: '100%',
+                opacity: isNearCenter ? 1 : isApproaching ? 0.95 : (block.y < 0 ? 0.7 : 0.9),
+                zIndex: isNearCenter ? 20 : 10
+              }}
+            >
+              <div className="absolute inset-0 flex items-center justify-center">
+                {block.type === 'GOLD' ? (
+                  <span className="text-6xl md:text-7xl">💰</span>
+                ) : (
+                  <span className="text-5xl md:text-6xl">🗑️</span>
+                )}
+              </div>
+              {isApproaching && !isNearCenter && (
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-cyan-400 text-base font-bold animate-pulse bg-black/70 px-3 py-1 rounded whitespace-nowrap z-30">
+                  {block.type === 'GOLD' ? '💰 即将到达！' : '🗑️ 即将到达'}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* 飞爪瞄准线 */}
+        <div 
+          className="absolute left-0 right-0 z-30 pointer-events-none"
+          style={{ 
+            top: `${PLAYER_Y}vh`,
+            transform: 'translateY(-50%)'
+          }}
+        >
+          {/* 中心线 */}
+          <div className="h-2 bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,1)]"></div>
+          
+          {/* 飞爪图标 */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-10 w-20 h-20 flex items-center justify-center">
+            <div className="text-7xl md:text-8xl animate-bounce" style={{ filter: 'drop-shadow(0 0 15px rgba(6,182,212,1))' }}>
+              🦅
+            </div>
+          </div>
+          
+          {/* 左右箭头 */}
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 text-6xl md:text-7xl font-black animate-pulse z-40" style={{ textShadow: '0 0 20px rgba(6,182,212,1)' }}>
+            ◄
+          </div>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan-400 text-6xl md:text-7xl font-black animate-pulse z-40" style={{ textShadow: '0 0 20px rgba(6,182,212,1)' }}>
+            ►
+          </div>
+          
+          {/* 提示文字 */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-3 text-cyan-400 text-xs md:text-sm font-bold orbitron bg-black/70 px-3 py-1 rounded whitespace-nowrap">
+            瞄准线 - 点击发射飞爪
+          </div>
+        </div>
+
+        {/* 瞄准区域高亮 */}
+        <div 
+          className="absolute left-0 right-0 bg-cyan-500/10 border-t-2 border-b-2 border-cyan-500/30 z-5 pointer-events-none"
+          style={{ 
+            top: `${PLAYER_Y - 5}vh`,
+            height: '10vh'
+          }}
+        />
+      </div>
+
+      {/* 右侧：目标方向 */}
+      <div className={`absolute right-0 top-0 bottom-0 w-1/4 flex items-center justify-center ${newSide === Side.LONG ? 'bg-emerald-950/30' : 'bg-rose-950/30'}`}>
+        <div className="text-center">
+          <div className="text-4xl md:text-5xl font-black orbitron mb-2">
+            {newSide === Side.LONG ? '↑' : '↓'}
+          </div>
+          <div className="text-lg md:text-xl font-bold orbitron">
+            {newSide === Side.LONG ? '多头' : '空头'}
+          </div>
+        </div>
+      </div>
+
+      {/* 反馈文字 */}
+      {feedback && (
+        <div className={`absolute top-1/3 left-1/2 -translate-x-1/2 z-40 pointer-events-none text-center ${
+          feedback.type === 'PERFECT' 
+            ? 'text-yellow-400' 
+            : feedback.type === 'NORMAL'
+            ? 'text-cyan-400'
+            : 'text-rose-400'
+        }`}>
+          <div className={`text-4xl md:text-6xl font-black orbitron animate-bounce ${
+            feedback.type === 'PERFECT' ? 'animate-pulse' : ''
+          }`}>
+            {feedback.type === 'PERFECT' && '✨ 完美切换！免费 ✨'}
+            {feedback.type === 'NORMAL' && '⚡ 抓到废铁 ⚡'}
+            {feedback.type === 'FAIL' && '💥 抓空！硬着陆 💥'}
+          </div>
+          {feedback.type !== 'PERFECT' && (
+            <div className="text-xl md:text-2xl text-center mt-4 font-bold">
+              手续费: ${feedback.type === 'NORMAL' ? Math.floor(baseFee * 0.5).toLocaleString() : (baseFee * 2).toLocaleString()}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 底部说明 */}
+      <div className="absolute bottom-4 left-0 right-0 z-30">
+        <div className="bg-slate-900/90 border-2 border-cyan-500/50 rounded-lg p-3 md:p-4 mx-4">
+          <div className="grid grid-cols-3 gap-4 text-center text-xs md:text-sm">
+            <div>
+              <div className="text-yellow-400 text-2xl mb-1">💰</div>
+              <div className="text-white font-bold">金块</div>
+              <div className="text-emerald-400">免费</div>
+            </div>
+            <div>
+              <div className="text-slate-400 text-2xl mb-1">🗑️</div>
+              <div className="text-white font-bold">废铁</div>
+              <div className="text-cyan-400">${Math.floor(baseFee * 0.5).toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-rose-400 text-2xl mb-1">❌</div>
+              <div className="text-white font-bold">抓空</div>
+              <div className="text-rose-400">${(baseFee * 2).toLocaleString()}</div>
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-slate-700 text-center">
+            <div className="text-cyan-400 text-xs md:text-sm font-bold orbitron">
+              👆 当方块经过中心线时点击屏幕 👆
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 取消按钮 */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onCancel();
+        }}
+        className="absolute top-4 right-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm orbitron font-bold uppercase transition-all z-40"
+      >
+        取消
+      </button>
+    </div>
+  );
+};
+
+export default QuantumGrapple;

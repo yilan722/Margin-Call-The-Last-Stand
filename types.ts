@@ -37,10 +37,14 @@ export interface Scenario {
   eventText: string;
   chapter: Chapter;
   level: number; // 关卡编号，如 1-1, 1-5 (BOSS)
+  phase: number; // 阶段编号 1-4，每个关卡分为4个阶段
   isBoss: boolean;
   year: number; // 历史年份
   targetMultiplier?: number; // 目标倍率（新增，如1.2表示目标增长20%）
   duration?: number; // 关卡时长（秒）
+  symbol?: string; // 股票/资产代码（用于获取真实数据）
+  startDate?: string; // 数据开始日期
+  endDate?: string; // 数据结束日期
 }
 
 // 装备类型（永久提升）
@@ -74,7 +78,7 @@ export interface PlayerProfile {
   currentCash: number;         // 当前连续滚动的本金（新增）
   currentChapter: Chapter;      // 当前章节
   currentLevel: number;         // 当前关卡
-  unlockedLevels: string[];     // 已解锁关卡ID列表
+  currentPhase: number;         // 当前阶段（1-4）
   equipment: Equipment[];       // 装备列表
   consumables: Consumable[];    // 消耗品库存
   totalDiamondsEarned: number;  // 累计获得钻石
@@ -94,7 +98,7 @@ export interface GameState {
 export enum TemporaryItemType {
   HIGH_LEVERAGE_PERMIT = 'HIGH_LEVERAGE_PERMIT', // 强力大力丸：允许100x杠杆
   DYNAMITE = 'DYNAMITE',                          // 止损机器人：无损平仓一次
-  LUCKY_NEWS = 'LUCKY_NEWS',                      // 幸运草：下一关必定上涨
+  LUCKY_NEWS = 'LUCKY_NEWS',                      // 幸运草：可以预览开局10秒的走势
   TIME_FREEZE = 'TIME_FREEZE'                     // 时间冻结液：增加10秒交易时间
 }
 
@@ -117,4 +121,9 @@ export interface PlayerState {
   highPnl: number;
   currentYield: number; // 当前收益率（用于转化为钻石）
   usedConsumables: ConsumableType[]; // 本局已使用的消耗品
+  marginAdded: number; // 已补仓金额（累计）
+  positionSize: number; // 仓位大小（100% = 满仓，砍仓后会减少）
+  temporaryItems: TemporaryItemType[]; // 本局临时道具（从局间商店购买）
+  stopLossActivated?: boolean; // 止损机器人是否已激活（锁定PnL）
+  stopLossLockedPnl?: number; // 止损锁定时的PnL值
 }

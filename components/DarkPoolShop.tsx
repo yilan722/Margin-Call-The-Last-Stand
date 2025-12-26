@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PlayerProfile, EquipmentType, ConsumableType } from '../types';
 import { EQUIPMENT_PRICES, CONSUMABLE_PRICES } from '../constants';
+import { i18n } from '../utils/i18n';
 
 interface Props {
   profile: PlayerProfile;
@@ -9,7 +10,7 @@ interface Props {
 }
 
 const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
-  const [selectedTab, setSelectedTab] = useState<'equipment' | 'consumable'>('equipment');
+  const [selectedTab, setSelectedTab] = useState<'equipment' | 'consumable'>('consumable'); // 默认显示消耗品
 
   const getEquipmentLevel = (type: EquipmentType): number => {
     const eq = profile.equipment.find(e => e.type === type);
@@ -68,12 +69,12 @@ const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-gradient-to-b from-slate-900 to-transparent pb-8 pt-8 px-16 border-b border-slate-800">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="orbitron text-5xl font-black text-white tracking-tighter">黑市交易所</h1>
+          <h1 className="orbitron text-5xl font-black text-white tracking-tighter">{i18n.t('darkPoolShop.title')}</h1>
           <button
             onClick={onBack}
             className="px-6 py-3 border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition-all orbitron text-sm uppercase tracking-widest"
           >
-            返回
+            {i18n.t('common.back')}
           </button>
         </div>
         
@@ -81,7 +82,7 @@ const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
           <div className="flex items-center space-x-3">
             <span className="text-3xl">💎</span>
             <div>
-              <div className="text-slate-500 text-xs orbitron uppercase tracking-widest">时间钻石</div>
+              <div className="text-slate-500 text-xs orbitron uppercase tracking-widest">{i18n.t('darkPoolShop.timeDiamonds')}</div>
               <div className="text-2xl font-bold text-cyan-400 orbitron">{profile.timeDiamonds}</div>
             </div>
           </div>
@@ -90,7 +91,8 @@ const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
 
       {/* Tabs */}
       <div className="px-16 pt-8 flex space-x-4 border-b border-slate-800">
-        <button
+        {/* 装备系统暂时关闭 */}
+        {/* <button
           onClick={() => setSelectedTab('equipment')}
           className={`px-8 py-4 orbitron font-black uppercase tracking-widest transition-all ${
             selectedTab === 'equipment'
@@ -98,8 +100,8 @@ const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
               : 'text-slate-600 hover:text-slate-400'
           }`}
         >
-          装备系统（永久）
-        </button>
+          {i18n.t('darkPoolShop.equipmentTab')}
+        </button> */}
         <button
           onClick={() => setSelectedTab('consumable')}
           className={`px-8 py-4 orbitron font-black uppercase tracking-widest transition-all ${
@@ -108,63 +110,19 @@ const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
               : 'text-slate-600 hover:text-slate-400'
           }`}
         >
-          消耗品（带入关卡）
+          {i18n.t('darkPoolShop.consumableTab')}
         </button>
       </div>
 
       {/* Content */}
       <div className="px-16 py-12">
         {selectedTab === 'equipment' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {Object.values(EquipmentType).map((type) => {
-              const level = getEquipmentLevel(type);
-              const price = getEquipmentPrice(type);
-              const info = equipmentInfo[type];
-              const canAfford = profile.timeDiamonds >= price;
-              const isMaxLevel = level >= 5;
-
-              return (
-                <div
-                  key={type}
-                  className={`p-6 border-2 rounded transition-all ${
-                    isMaxLevel
-                      ? 'border-amber-500 bg-amber-500/10'
-                      : canAfford
-                      ? 'border-slate-700 bg-slate-900/50 hover:border-cyan-500'
-                      : 'border-slate-800 bg-slate-950/50 opacity-50'
-                  }`}
-                >
-                  <div className="mb-4">
-                    <h3 className="orbitron text-xl font-black text-white mb-2">{info.name}</h3>
-                    <div className="text-sm text-slate-400 mb-2">{info.desc}</div>
-                    <div className="text-xs text-cyan-400 mb-4">{info.effect}</div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-slate-500 text-xs">当前等级:</span>
-                      <span className="text-amber-500 font-bold">{level}/5</span>
-                    </div>
-                  </div>
-                  
-                  {!isMaxLevel && (
-                    <button
-                      onClick={() => onPurchase('equipment', type)}
-                      disabled={!canAfford}
-                      className={`w-full py-3 orbitron font-black uppercase tracking-widest transition-all ${
-                        canAfford
-                          ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                          : 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                      }`}
-                    >
-                      {canAfford ? `升级 - ${price} 💎` : `需要 ${price} 💎`}
-                    </button>
-                  )}
-                  {isMaxLevel && (
-                    <div className="w-full py-3 bg-amber-600/20 text-amber-400 text-center orbitron font-black uppercase tracking-widest">
-                      已满级
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="text-6xl mb-4">🚧</div>
+              <h3 className="orbitron text-2xl font-black text-slate-400 mb-2">{i18n.t('darkPoolShop.equipmentComingSoon')}</h3>
+              <p className="text-slate-500">{i18n.t('darkPoolShop.equipmentComingSoonDesc')}</p>
+            </div>
           </div>
         )}
 
@@ -190,7 +148,7 @@ const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
                     <div className="text-sm text-slate-400 mb-2">{info.desc}</div>
                     <div className="text-xs text-cyan-400 mb-4">{info.effect}</div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-slate-500 text-xs">库存:</span>
+                      <span className="text-slate-500 text-xs">{i18n.t('darkPoolShop.stock')}:</span>
                       <span className="text-emerald-500 font-bold">{count}</span>
                     </div>
                   </div>
@@ -204,7 +162,7 @@ const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
                         : 'bg-slate-800 text-slate-600 cursor-not-allowed'
                     }`}
                   >
-                    {canAfford ? `购买 - ${price} 💎` : `需要 ${price} 💎`}
+                    {canAfford ? `${i18n.t('darkPoolShop.buy')} - ${price} 💎` : `${i18n.t('darkPoolShop.requires')} ${price} 💎`}
                   </button>
                 </div>
               );
@@ -217,5 +175,7 @@ const DarkPoolShop: React.FC<Props> = ({ profile, onPurchase, onBack }) => {
 };
 
 export default DarkPoolShop;
+
+
 
 
