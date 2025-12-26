@@ -53,17 +53,69 @@ export default async function handler(
     return res.status(400).json({ error: 'Missing stripe-signature header' });
   }
 
+  // 获取原始请求体（Stripe webhook 需要原始 body 来验证签名）
+  // 在 Vercel 中，对于 webhook，req.body 应该是字符串或 Buffer
+  // 但如果 Content-Type 是 application/json，Vercel 可能会自动解析
+  let rawBody: string | Buffer;
+  
+  // 方法 1: 检查是否有 rawBody 属性
+  if ((req as any).rawBody) {
+    rawBody = (req as any).rawBody;
+    console.log('✅ Using rawBody property');
+  } 
+  // 方法 2: 如果 body 是字符串，直接使用
+  else if (typeof req.body === 'string') {
+    rawBody = req.body;
+    console.log('✅ Using body as string, length:', rawBody.length);
+  } 
+  // 方法 3: 如果 body 是 Buffer，直接使用
+  else if (Buffer.isBuffer(req.body)) {
+    rawBody = req.body;
+    console.log('✅ Using body as Buffer, length:', rawBody.length);
+  } 
+  // 方法 4: 如果 body 是对象，说明已经被解析了
+  // 在这种情况下，我们需要从请求中读取原始数据
+  // 但 Vercel 可能已经解析了它，所以我们需要使用不同的方法
+  else {
+    console.error('❌ Body has been parsed as object/JSON');
+    console.error('Body type:', typeof req.body);
+    console.error('Content-Type:', req.headers['content-type']);
+    
+    // 尝试从 req 中获取原始 body（如果可能）
+    // 在某些情况下，Vercel 会在 req.body 中保留原始字符串
+    // 但通常如果 Content-Type 是 application/json，它会被解析
+    
+    // 返回详细的错误信息，帮助调试
+    return res.status(400).json({ 
+      error: 'Body parsing issue',
+      message: 'Request body was parsed as JSON, but Stripe webhook requires raw body for signature verification.',
+      details: {
+        bodyType: typeof req.body,
+        contentType: req.headers['content-type'],
+        hasRawBody: !!(req as any).rawBody,
+        suggestion: 'The webhook endpoint may need special configuration to preserve the raw body.'
+      }
+    });
+  }
+
   let event: Stripe.Event;
 
   try {
-    // 验证 Webhook 签名
+    // 验证 Webhook 签名（需要原始 body）
     event = stripe.webhooks.constructEvent(
-      req.body,
+      rawBody,
       sig,
       webhookSecret
     );
   } catch (err: any) {
     console.error('❌ Webhook signature verification failed:', err.message);
+    console.error('Error details:', {
+      bodyType: typeof rawBody,
+      bodyLength: rawBody?.length || 0,
+      hasSignature: !!sig,
+      hasSecret: !!webhookSecret,
+      signaturePrefix: sig?.substring(0, 20) || 'none'
+    });
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 

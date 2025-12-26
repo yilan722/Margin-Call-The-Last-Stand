@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "api/webhook-neon.ts": {
+      "includeFiles": "**/*"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/webhook-neon",
+      "destination": "/api/webhook-neon"
+    }
+  ]
+}
+
