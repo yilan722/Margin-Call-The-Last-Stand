@@ -1,10 +1,14 @@
 // 音效管理器
 // 使用 Web Audio API 生成音效，无需外部音频文件
+// 支持背景音乐播放
 
 class SoundManager {
   private audioContext: AudioContext | null = null;
   private _enabled: boolean = true;
   private volume: number = 0.3; // 默认音量
+  private backgroundMusic: HTMLAudioElement | null = null;
+  private musicEnabled: boolean = true;
+  private musicVolume: number = 0.4; // 背景音乐音量（比音效稍低）
 
   get enabled(): boolean {
     return this._enabled;
@@ -18,6 +22,71 @@ class SoundManager {
       } catch (e) {
         console.warn('AudioContext not supported');
       }
+    }
+
+    // 初始化背景音乐
+    if (typeof window !== 'undefined') {
+      this.initBackgroundMusic();
+    }
+  }
+
+  // 初始化背景音乐
+  private initBackgroundMusic() {
+    try {
+      this.backgroundMusic = new Audio('/music/background-music.ogg');
+      this.backgroundMusic.loop = true; // 循环播放
+      this.backgroundMusic.volume = this.musicVolume;
+      this.backgroundMusic.preload = 'auto';
+      
+      // 处理加载错误
+      this.backgroundMusic.addEventListener('error', (e) => {
+        console.warn('Background music failed to load:', e);
+      });
+    } catch (e) {
+      console.warn('Failed to initialize background music:', e);
+    }
+  }
+
+  // 播放背景音乐
+  playBackgroundMusic() {
+    if (!this.musicEnabled || !this.backgroundMusic) return;
+    
+    try {
+      // 需要用户交互后才能播放音频
+      const playPromise = this.backgroundMusic!.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.warn('Background music play failed:', error);
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to play background music:', e);
+    }
+  }
+
+  // 停止背景音乐
+  stopBackgroundMusic() {
+    if (this.backgroundMusic) {
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
+    }
+  }
+
+  // 设置背景音乐开关
+  setMusicEnabled(enabled: boolean) {
+    this.musicEnabled = enabled;
+    if (enabled) {
+      this.playBackgroundMusic();
+    } else {
+      this.stopBackgroundMusic();
+    }
+  }
+
+  // 设置背景音乐音量
+  setMusicVolume(volume: number) {
+    this.musicVolume = Math.max(0, Math.min(1, volume));
+    if (this.backgroundMusic) {
+      this.backgroundMusic.volume = this.musicVolume;
     }
   }
 

@@ -162,6 +162,8 @@ const App: React.FC = () => {
     const initSound = () => {
       // 尝试初始化 AudioContext（需要用户交互）
       soundManager.setEnabled(true);
+      // 启动背景音乐
+      soundManager.playBackgroundMusic();
     };
     // 在用户首次点击时初始化
     document.addEventListener('click', initSound, { once: true });
@@ -1580,8 +1582,8 @@ const App: React.FC = () => {
         HISTORY REPLAY SIMULATION | NO REAL FINANCIAL RISK | STAY VIGILANT
       </div>
 
-      {/* 音效开关（右下角） */}
-      <div className="absolute bottom-4 right-6 z-50">
+      {/* 音效和音乐开关（右下角） */}
+      <div className="absolute bottom-4 right-6 z-50 flex gap-2">
         <button
           onClick={() => {
             const currentEnabled = soundManager.enabled;
